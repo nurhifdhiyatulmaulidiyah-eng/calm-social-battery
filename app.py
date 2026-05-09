@@ -9,128 +9,114 @@ import numpy as np
 # ==========================================
 st.set_page_config(page_title="Capstone Project: Calm Social Battery", layout="wide")
 
-# Custom CSS
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    </style>
-    """, unsafe_allow_html=True)
-
 # Load Data
 @st.cache_data
 def load_data():
+    # Karena file di GitHub ada di folder utama, tidak perlu pakai "dashboard/"
     df = pd.read_csv("main_data_social_battre.csv")
     month_order = ['January', 'February', 'March', 'April', 'May', 'June',
                    'July', 'August', 'September', 'October', 'November', 'December']
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    if 'battery_category' not in df.columns:
+        df['battery_category'] = pd.cut(df['battery_score'], bins=[-20, 0, 20, 50, 80, 120], 
+                                        labels=['Exhausted', 'Low', 'Medium', 'High', 'Very High'])
     return df, month_order, day_order
 
 try:
     df, month_order, day_order = load_data()
 
+    # ==========================================
+    # SIDEBAR (CONTROL PANEL)
+    # ==========================================
+    st.sidebar.title("🎮 Dashboard Controller")
+    st.sidebar.markdown("Atur filter untuk melihat perubahan data secara real-time.")
+    
+    selected_months = st.sidebar.multiselect(
+        "Pilih Bulan:", 
+        options=month_order, 
+        default=month_order
+    )
+    
+    selected_categories = st.sidebar.multiselect(
+        "Status Energi:", 
+        options=df['battery_category'].unique().tolist(), 
+        default=df['battery_category'].unique().tolist()
+    )
+
+    # Filter Data
+    df_filtered = df[(df['month_name'].isin(selected_months)) & (df['battery_category'].isin(selected_categories))]
+
+    # ==========================================
+    # HEADER UTAMA
+    # ==========================================
     st.title("🌙 Capstone Project: Calm Social Battery")
-    st.markdown("Analisis Mendalam Kelelahan Sosial dan Pola Pemulihan Energi Pengguna 2026")
+    st.markdown("Analisis Perilaku Sosial dan Manajemen Energi Pengguna 2026")
     st.divider()
 
-    # KPI
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    with col_m1: st.metric("Total Sampel", f"{len(df)} Records")
-    with col_m2: st.metric("Rata-rata Battery", f"{df['battery_score'].mean():.1f}")
-    with col_m3: 
-        ex_rate = (df['is_exhausted'].sum() / len(df)) * 100
-        st.metric("Tingkat Exhaustion", f"{ex_rate:.1f}%")
-    with col_m4: st.metric("Status Sistem", "Aktif")
+    # KPI Metrics di bagian atas
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Total Sampel Data", f"{len(df_filtered)} Records")
+    m2.metric("Rata-rata Skor Baterai", f"{df_filtered['battery_score'].mean():.1f}")
+    m3.metric("Tingkat Kelelahan (Exhausted)", f"{(df_filtered['is_exhausted'].sum()/len(df_filtered)*100):.1f}%")
+    st.divider()
 
+    # ==========================================
     # 1. TREN BULANAN
-    st.header("1. Analisis Tren Social Fatigue Bulanan")
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        monthly_ex = df.groupby('month_name')['is_exhausted'].mean() * 100
-        monthly_ex = monthly_ex.reindex(month_order)
-        fig1, ax1 = plt.subplots(figsize=(10, 5))
-        sns.barplot(x=monthly_ex.index, y=monthly_ex.values, palette="RdYlGn_r", ax=ax1, edgecolor='black', hue=monthly_ex.index, legend=False)
-        ax1.set_ylabel("Persentase Exhausted (%)")
-        plt.xticks(rotation=45)
-        st.pyplot(fig1)
-    with col2:
-        st.markdown("""
-        **Penjelasan:** Berdasarkan analisis 2.000 record, tingkat kelelahan meningkat drastis di pertengahan tahun.
-        - **Puncak Kelelahan:** Juni (**16.5%**).
-        - **Periode Tersegar:** Maret (**5.8%**).
-        - **Kesimpulan:** Lonjakan fatigue di bulan Juni mencapai 3x lipat dibanding Maret.
-        """)
-
+    # ==========================================
+    st.header("1. Tren Social Fatigue Bulanan")
+    fig1, ax1 = plt.subplots(figsize=(12, 5))
+    data_m = df_filtered.groupby('month_name')['is_exhausted'].mean().reindex([m for m in month_order if m in selected_months])
+    sns.barplot(x=data_m.index, y=data_m.values, palette="viridis", ax=ax1, hue=data_m.index, legend=False)
+    plt.xticks(rotation=45)
+    st.pyplot(fig1)
+    st.write("**Kesimpulan:** Grafik ini menjawab kapan risiko kelelahan tertinggi terjadi (puncak di bulan Juni).")
     st.divider()
 
+    # ==========================================
     # 2. BATAS AMAN DURASI
-    st.header("2. Penentuan Batas Aman Durasi Sosial")
-    col3, col4 = st.columns([2, 1])
-    with col3:
-        fig2, ax2 = plt.subplots(figsize=(10, 5))
-        if 'battery_category' not in df.columns:
-            df['battery_category'] = pd.cut(df['battery_score'], bins=[-20, 0, 20, 50, 80, 120], labels=['Exhausted', 'Low', 'Medium', 'High', 'Very High'])
-        sns.boxplot(data=df, x='battery_category', y='total_duration_minutes', palette="coolwarm", ax=ax2, hue='battery_category', legend=False)
-        st.pyplot(fig2)
-    with col4:
-        st.markdown("""
-        **Penjelasan:** Zona Merah (Low) memiliki durasi jauh lebih tinggi dibanding Zona Sehat.
-        - **Median Zona Merah:** 978 Menit (16.3 Jam).
-        - **Kesimpulan:** Batas aman durasi sosial harian adalah **< 950 menit**.
-        """)
-
+    # ==========================================
+    st.header("2. Batas Aman Durasi Sosial")
+    fig2, ax2 = plt.subplots(figsize=(12, 5))
+    sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', palette="coolwarm", ax=ax2)
+    st.pyplot(fig2)
+    st.write("**Kesimpulan:** Menentukan ambang batas durasi sosial (~950 menit) agar baterai tidak masuk zona 'Low'.")
     st.divider()
 
+    # ==========================================
     # 3. POLA HARIAN
-    st.header("3. Pola Kelelahan Berdasarkan Hari (Weekly Pattern)")
-    col5, col6 = st.columns([2, 1])
-    with col5:
-        daily_score = df.groupby('day_of_week')['battery_score'].mean().reindex(day_order)
-        fig3, ax3 = plt.subplots(figsize=(10, 5))
-        ax3.plot(daily_score.index, daily_score.values, marker='o', color='navy', linewidth=3)
-        ax3.fill_between(daily_score.index, daily_score.values, color='skyblue', alpha=0.3)
-        st.pyplot(fig3)
-    with col6:
-        st.markdown("""
-        **Penjelasan:** Pola "U-Turn" energi mingguan terdeteksi jelas.
-        - **Puncak Energi:** Sunday (**56.2**).
-        - **Palung Energi (Crash):** Wednesday (**41.5**).
-        - **Kesimpulan:** Intervensi paling dibutuhkan di hari Rabu.
-        """)
-
+    # ==========================================
+    st.header("3. Pola Kelelahan Mingguan (Monday - Sunday)")
+    fig3, ax3 = plt.subplots(figsize=(12, 5))
+    data_d = df_filtered.groupby('day_of_week')['battery_score'].mean().reindex(day_order)
+    ax3.plot(data_d.index, data_d.values, marker='o', color='royalblue', linewidth=4, markersize=10)
+    ax3.fill_between(data_d.index, data_d.values, alpha=0.2, color='royalblue')
+    st.pyplot(fig3)
+    st.write("**Kesimpulan:** Mengidentifikasi 'Mid-Week Crash' pada hari Rabu dan proses recovery di hari Minggu.")
     st.divider()
 
+    # ==========================================
     # 4. KORELASI INTENSITAS
-    st.header("4. Korelasi Intensitas Sosial vs Kelelahan")
-    col7, col8 = st.columns([2, 1])
-    with col7:
-        fig4, ax4 = plt.subplots(figsize=(10, 5))
-        sns.regplot(data=df, x='social_intensity_score', y='battery_score', scatter_kws={'alpha':0.3, 'color':'gray'}, line_kws={'color':'red'}, ax=ax4)
-        st.pyplot(fig4)
-    with col8:
-        st.markdown("""
-        **Penjelasan:** Uji r menunjukkan korelasi negatif sebesar **-0.352**.
-        - **Kesimpulan:** Semakin tinggi intensitas sosial harian, semakin rendah sisa energi sosial pengguna.
-        """)
-
+    # ==========================================
+    st.header("4. Hubungan Intensitas Sosial vs Skor Baterai")
+    fig4, ax4 = plt.subplots(figsize=(12, 5))
+    sns.regplot(data=df_filtered, x='social_intensity_score', y='battery_score', scatter_kws={'alpha':0.2}, line_kws={'color':'red'}, ax=ax4)
+    st.pyplot(fig4)
+    st.write("**Kesimpulan:** Membuktikan bahwa semakin ramai/intens interaksi sosial, semakin cepat baterai energi terkuras.")
     st.divider()
 
-    # 5. PERBANDINGAN SEHAT VS LELAH
-    st.header("5. Perbandingan Efek Durasi: Sehat vs Lelah")
-    col9, col10 = st.columns([2, 1])
-    with col9:
-        df['group'] = np.where(df['total_duration_minutes'] < 900, 'Sehat (<15h)', 'Lelah (>16.7h)')
-        fig5, ax5 = plt.subplots(figsize=(10, 5))
-        sns.barplot(data=df, x='group', y='battery_score', palette="viridis", ax=ax5, hue='group', legend=False)
-        st.pyplot(fig5)
-    with col10:
-        st.markdown("""
-        **Penjelasan:** Kelompok durasi aman memiliki energi **37% lebih tinggi**.
-        - **Kesimpulan:** Durasi aktivitas sosial berpengaruh signifikan terhadap risiko kelelahan ekstrem.
-        """)
+    # ==========================================
+    # 5. EFEKTIVITAS PEMBATASAN
+    # ==========================================
+    st.header("5. Perbandingan Kelompok Durasi Sehat vs Lelah")
+    df_filtered['group'] = np.where(df_filtered['total_duration_minutes'] < 900, 'Sehat (<15h)', 'Lelah (>16h)')
+    fig5, ax5 = plt.subplots(figsize=(12, 5))
+    sns.barplot(data=df_filtered, x='group', y='battery_score', palette="plasma", ax=ax5, hue='group', legend=False)
+    st.pyplot(fig5)
+    st.write("**Kesimpulan:** Menjawab pertanyaan apakah membatasi durasi sosial benar-benar efektif menjaga energi.")
 
     st.divider()
-    st.markdown("<center><b>Capstone Project: Calm Social Battery - Analisis Data Selesai</b></center>", unsafe_allow_html=True)
+    st.info("💡 Dashboard ini dirancang untuk memberikan insight mendalam bagi manajemen energi sosial pengguna.")
 
 except Exception as e:
     st.error(f"Gagal memuat dashboard. Error: {e}")
