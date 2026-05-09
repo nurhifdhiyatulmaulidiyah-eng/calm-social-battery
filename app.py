@@ -20,7 +20,7 @@ st.markdown("""
 # Load Data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dashboard/main_data_social_battre.csv")
+    df = pd.read_csv("main_data_social_battre.csv")
     month_order = ['January', 'February', 'March', 'April', 'May', 'June',
                    'July', 'August', 'September', 'October', 'November', 'December']
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
