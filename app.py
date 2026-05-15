@@ -45,11 +45,16 @@ try:
         # Definisikan kategori fokus (Hanya Sangat Lelah, Lelah, Cukup)
         focus_categories = ['Sangat Lelah', 'Lelah', 'Cukup']
 
+        # LOGIKA RESET (Session State)
+        if 'month_filter' not in st.session_state:
+            st.session_state.month_filter = month_order
+        if 'cat_filter' not in st.session_state:
+            st.session_state.cat_filter = focus_categories
+
         with st.expander("📅 Periode Analisis", expanded=True):
             selected_months = st.multiselect(
                 "Pilih Bulan:", 
                 options=month_order, 
-                default=month_order,
                 key="month_filter"
             )
         
@@ -57,7 +62,6 @@ try:
             selected_categories = st.multiselect(
                 "Level Baterai:", 
                 options=focus_categories, 
-                default=focus_categories,
                 key="cat_filter"
             )
         
@@ -66,9 +70,10 @@ try:
         st.caption("Capstone: Calm Social Battery")
         st.caption("Fokus: Academic Burnout")
         
-        # Perbaikan Tombol Reset: Menghapus state agar kembali ke default
+        # Perbaikan Tombol Reset: Mengembalikan state ke daftar lengkap (Select All)
         if st.button("🔄 Reset Semua Filter"):
-            st.session_state.clear()
+            st.session_state.month_filter = month_order
+            st.session_state.cat_filter = focus_categories
             st.rerun()
 
     # PROSES FILTERING DATA
@@ -142,8 +147,8 @@ try:
         # --- 3. POLA HARIAN (MID-WEEK CRASH) ---
         st.header("3. Analisis Siklus Mingguan dan Fenomena Titik Jenuh (Crash)")
         fig3, ax3 = plt.subplots(figsize=(12, 5))
-        current_day_order = [d for d in day_order if d in df_filtered['day_of_week'].unique()]
-        data_d = df_filtered.groupby('day_of_week')['battery_score'].mean().reindex(current_day_order)
+        current_day_order = [d for d in day_order if d in day_order]
+        data_d = df_filtered.groupby('day_of_week')['battery_score'].mean().reindex(day_order)
         ax3.plot(data_d.index, data_d.values, marker='o', color='teal', linewidth=4, markersize=10)
         ax3.fill_between(data_d.index, data_d.values, alpha=0.2, color='teal')
         st.pyplot(fig3)
