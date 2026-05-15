@@ -33,48 +33,48 @@ def load_data():
 
 try:
     df, month_order, day_order = load_data()
+    focus_categories = ['Sangat Lelah', 'Lelah', 'Cukup']
 
     # ==========================================
-    # SIDEBAR (PENGATURAN INSTRUMEN)
+    # SIDEBAR
     # ==========================================
     with st.sidebar:
         st.title("🎮 Control Panel")
         st.write("Gunakan filter ini untuk menyesuaikan parameter analisis secara dinamis.")
         st.divider()
 
-        # Definisikan kategori fokus (Hanya Sangat Lelah, Lelah, Cukup)
-        focus_categories = ['Sangat Lelah', 'Lelah', 'Cukup']
-
-        # LOGIKA RESET (Session State)
-        if 'month_filter' not in st.session_state:
-            st.session_state.month_filter = month_order
-        if 'cat_filter' not in st.session_state:
-            st.session_state.cat_filter = focus_categories
+        # Jika tombol ditekan, paksa isi session_state dengan daftar lengkap
+        if st.button("🔄 Reset Semua Filter"):
+            st.session_state['month_filter'] = month_order
+            st.session_state['cat_filter'] = focus_categories
+            st.rerun()
 
         with st.expander("📅 Periode Analisis", expanded=True):
+            # Cek jika session_state belum ada, isi dengan default
+            if 'month_filter' not in st.session_state:
+                st.session_state['month_filter'] = month_order
+                
             selected_months = st.multiselect(
                 "Pilih Bulan:", 
                 options=month_order, 
-                key="month_filter"
+                key="month_filter" # Key harus sama dengan yang di-reset
             )
         
         with st.expander("⚡ Kondisi Energi", expanded=True):
+            # Cek jika session_state belum ada, isi dengan default
+            if 'cat_filter' not in st.session_state:
+                st.session_state['cat_filter'] = focus_categories
+                
             selected_categories = st.multiselect(
                 "Level Baterai:", 
                 options=focus_categories, 
-                key="cat_filter"
+                key="cat_filter" # Key harus sama dengan yang di-reset
             )
         
         st.divider()
         st.caption("🏷️ **Status Proyek**")
         st.caption("Capstone: Calm Social Battery")
         st.caption("Fokus: Academic Burnout")
-        
-        # Perbaikan Tombol Reset: Mengembalikan state ke daftar lengkap (Select All)
-        if st.button("🔄 Reset Semua Filter"):
-            st.session_state.month_filter = month_order
-            st.session_state.cat_filter = focus_categories
-            st.rerun()
 
     # PROSES FILTERING DATA
     df_filtered = df[
@@ -92,7 +92,7 @@ try:
     if df_filtered.empty:
         st.warning("⚠️ Data tidak ditemukan. Silakan sesuaikan parameter pada filter di samping.")
     else:
-        # Metrik Utama (KPI)
+        # Metrik Utama 
         avg_score = df_filtered['battery_score'].mean()
         exhaustion_rate = (df_filtered[df_filtered['battery_score'] < 0].shape[0]/len(df_filtered)*100)
         
@@ -128,7 +128,6 @@ try:
         # --- 2. BATAS AMAN DURASI ---
         st.header("2. Identifikasi Threshold Durasi terhadap Penurunan Energi")
         fig2, ax2 = plt.subplots(figsize=(12, 5))
-        # Mengatur agar plot boxplot konsisten dengan filter fokus
         sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', 
                     order=focus_categories, palette="coolwarm", ax=ax2)
         st.pyplot(fig2)
