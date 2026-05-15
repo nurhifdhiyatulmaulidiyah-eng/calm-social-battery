@@ -29,7 +29,7 @@ try:
     # SIDEBAR (CONTROL PANEL)
     # ==========================================
     st.sidebar.title("🎮 Dashboard Controller")
-    st.sidebar.markdown("Filter di bawah ini akan mengubah grafik dan keterangan secara otomatis.")
+    st.sidebar.markdown("Filter di bawah ini akan mengubah grafik, keterangan, dan solusi secara otomatis.")
     
     selected_months = st.sidebar.multiselect(
         "Pilih Periode Analisis:", 
@@ -58,7 +58,7 @@ try:
     st.divider()
 
     if df_filtered.empty:
-        st.warning("⚠️ Dataset tidak ditemukan untuk kombinasi filter ini. Silakan sesuaikan kembali pada Sidebar.")
+        st.warning("⚠️ Dataset tidak ditemukan. Silakan sesuaikan kembali parameter pada Sidebar.")
     else:
         # KPI Metrics
         avg_score = df_filtered['battery_score'].mean()
@@ -84,11 +84,21 @@ try:
         plt.xticks(rotation=45)
         st.pyplot(fig1)
 
-        # KETERANGAN 1
-        max_month = data_m.idxmax() if not data_m.dropna().empty else "N/A"
-        st.markdown(f"""
-        **Keterangan:** Berdasarkan filter periode yang dipilih, tingkat kelelahan tertinggi terdeteksi pada bulan **{max_month}** dengan persentase kelelahan kritis sebesar **{data_m.max():.1f}%**. Visualisasi ini memetakan fluktuasi *social exhaustion* ekstrem yang didefinisikan melalui skor baterai negatif. Lonjakan pada periode ini mengindikasikan akumulasi stresor sosial yang berkontribusi signifikan pada risiko *Academic Burnout*.
-        """)
+        # LOGIKA DINAMIS UNTUK KETERANGAN & SOLUSI
+        if not data_m.dropna().empty:
+            max_month = data_m.idxmax()
+            min_month = data_m.idxmin()
+            max_val = data_m.max()
+            min_val = data_m.min()
+            
+            st.markdown(f"""
+            **Keterangan:** Berdasarkan filter periode yang dipilih, tingkat kelelahan tertinggi terdeteksi pada bulan **{max_month}** ({max_val:.1f}%), yang mengindikasikan akumulasi stresor sosial maksimal. Sebaliknya, periode stabilisasi energi paling optimal terjadi pada bulan **{min_month}** dengan tingkat kelelahan hanya **{min_val:.1f}%**. Penurunan pada bulan {min_month} menunjukkan adanya fase pemulihan (*recovery*) atau berkurangnya beban interaksi yang membantu menjaga homeostasis mental pengguna.
+            """)
+            
+            # SOLUSI DINAMIS BERDASARKAN BULAN TERTINGGI
+            st.success(f"""
+            ✅ **Solusi Strategis:** Untuk memitigasi lonjakan kelelahan yang terjadi pada bulan **{max_month}**, direkomendasikan implementasi *Social Distancing* temporer dan peningkatan durasi *Deep Sleep*. Belajarlah dari pola pada bulan **{min_month}** di mana energi lebih terjaga; prioritaskan kualitas interaksi di atas kuantitas untuk menghindari degradasi energi menuju fase *Academic Burnout*.
+            """)
         st.divider()
 
         # ==========================================
@@ -99,11 +109,12 @@ try:
         sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', palette="coolwarm", ax=ax2)
         st.pyplot(fig2)
 
-        # KETERANGAN 2
+        # KETERANGAN 2 & SOLUSI
         median_dur = df_filtered[df_filtered['battery_category'] == 'Exhausted']['total_duration_minutes'].median()
         st.markdown(f"""
-        **Keterangan:** Identifikasi melalui distribusi statistik ini menetapkan parameter durasi maksimal interaksi sosial. Pada data saat ini, kelompok 'Exhausted' menunjukkan median durasi sebesar **{median_dur:.0f} menit**, mengonfirmasi bahwa eksposur sosial yang berlebihan merupakan prediktor utama terjadinya *Academic Burnout*.
+        **Keterangan:** Identifikasi melalui distribusi statistik menunjukkan bahwa kelompok 'Exhausted' memiliki median durasi interaksi sebesar **{median_dur:.0f} menit**. Hal ini mengonfirmasi bahwa durasi di atas ambang batas tersebut merupakan prediktor utama terjadinya degradasi energi sosial.
         """)
+        st.success(f"✅ **Solusi Strategis:** Tetapkan batasan waktu interaksi maksimal harian di bawah **{median_dur:.0f} menit**. Gunakan fitur pengingat durasi untuk mencegah eksposur sosial yang berlebihan yang dapat mempercepat transisi menuju kelelahan klinis.")
         st.divider()
 
         # ==========================================
@@ -118,11 +129,13 @@ try:
         ax3.fill_between(data_d.index, data_d.values, alpha=0.2, color='teal')
         st.pyplot(fig3)
 
-        # KETERANGAN 3
-        lowest_day = data_d.idxmin() if not data_d.dropna().empty else "N/A"
-        st.markdown(f"""
-        **Keterangan:** Grafik garis ini mengungkap pola sirkadian mingguan energi sosial pengguna. Titik terendah terdeteksi pada hari **{lowest_day}** dengan rata-rata skor **{data_d.min():.1f}**. Penurunan ini mencerminkan fase awal *exhaustion* yang jika dibiarkan akan berujung pada titik jenuh psikologis.
-        """)
+        # KETERANGAN 3 & SOLUSI
+        if not data_d.dropna().empty:
+            lowest_day = data_d.idxmin()
+            st.markdown(f"""
+            **Keterangan:** Grafik garis ini mengungkap pola harian di mana hari **{lowest_day}** menjadi titik energi terendah bagi pengguna. Kondisi ini mencerminkan fase jenuh psikologis akibat akumulasi beban interaksi mingguan yang tidak terkompensasi.
+            """)
+            st.success(f"✅ **Solusi Strategis:** Jadwalkan 'Recharge Time' atau waktu istirahat penuh pada hari **{lowest_day}**. Hindari pertemuan sosial intensitas tinggi pada hari tersebut untuk mencegah terjadinya *Mid-Week Crash* dan menjaga produktivitas akademik tetap stabil.")
         st.divider()
 
         # ==========================================
@@ -134,8 +147,9 @@ try:
         st.pyplot(fig4)
         
         st.markdown("""
-        **Keterangan:** Melalui pengujian regresi linear, ditemukan bukti bahwa variabel intensitas sosial memiliki pengaruh negatif yang signifikan terhadap sisa cadangan energi. Semakin tinggi beban interaksi, semakin cepat laju *exhaustion* terjadi, mempercepat transisi menuju *Academic Burnout*.
+        **Keterangan:** Terdapat bukti empiris bahwa variabel intensitas sosial memiliki pengaruh negatif yang signifikan terhadap sisa cadangan energi. Semakin tinggi beban intensitas interaksi, semakin cepat laju *exhaustion* terjadi.
         """)
+        st.success("✅ **Solusi Strategis:** Kurangi keterlibatan dalam interaksi sosial dengan intensitas atau keramaian tinggi secara berturut-turut. Lakukan regulasi diri dalam memilih kualitas lingkungan sosial guna menjaga stabilitas kapasitas kognitif.")
         st.divider()
 
         # ==========================================
@@ -148,11 +162,12 @@ try:
         st.pyplot(fig5)
         
         st.markdown("""
-        **Keterangan:** Visualisasi komparatif ini menunjukkan bahwa manajemen durasi di bawah 15 jam secara signifikan mampu menekan risiko *exhaustion*. Pengguna dengan pola durasi terkontrol memiliki daya tahan energi mental yang lebih berkelanjutan dibandingkan kelompok berisiko.
+        **Keterangan:** Visualisasi komparatif ini menunjukkan bahwa manajemen durasi di bawah 15 jam secara signifikan mampu menekan risiko kelelahan ekstrem dibandingkan kelompok berisiko.
         """)
+        st.success("✅ **Solusi Strategis:** Implementasikan strategi pembatasan waktu aktif sebagai intervensi utama. Pengguna disarankan untuk tetap berada pada pola durasi 'Terkontrol' untuk memastikan daya tahan energi mental yang berkelanjutan dalam jangka panjang.")
 
     st.divider()
-    st.info("💡 **Catatan Akademis:** Dashboard ini bersifat dinamis. Semua metrik dan keterangan di atas dihitung secara real-time berdasarkan filter yang dipilih.")
+    st.info("💡 **Catatan Akademis:** Dashboard ini mendeteksi pola kelelahan secara real-time. Gunakan solusi strategis yang muncul sebagai langkah preventif terhadap risiko Academic Burnout.")
 
 except Exception as e:
     st.error(f"⚠️ Terjadi hambatan teknis: {e}")
