@@ -42,19 +42,33 @@ try:
         st.write("Gunakan filter ini untuk menyesuaikan parameter analisis secara dinamis.")
         st.divider()
 
+        # Definisikan kategori fokus (Hanya Sangat Lelah, Lelah, Cukup)
+        focus_categories = ['Sangat Lelah', 'Lelah', 'Cukup']
+
         with st.expander("📅 Periode Analisis", expanded=True):
-            selected_months = st.multiselect("Pilih Bulan:", options=month_order, default=month_order)
+            selected_months = st.multiselect(
+                "Pilih Bulan:", 
+                options=month_order, 
+                default=month_order,
+                key="month_filter"
+            )
         
         with st.expander("⚡ Kondisi Energi", expanded=True):
-            available_categories = ['Sangat Lelah', 'Lelah', 'Cukup', 'Bagus', 'Sangat Bagus']
-            selected_categories = st.multiselect("Level Baterai:", options=available_categories, default=available_categories)
+            selected_categories = st.multiselect(
+                "Level Baterai:", 
+                options=focus_categories, 
+                default=focus_categories,
+                key="cat_filter"
+            )
         
         st.divider()
         st.caption("🏷️ **Status Proyek**")
         st.caption("Capstone: Calm Social Battery")
         st.caption("Fokus: Academic Burnout")
         
+        # Perbaikan Tombol Reset: Menghapus state agar kembali ke default
         if st.button("🔄 Reset Semua Filter"):
+            st.session_state.clear()
             st.rerun()
 
     # PROSES FILTERING DATA
@@ -79,7 +93,7 @@ try:
         
         m1, m2, m3 = st.columns(3)
         m1.metric("Volume Observasi", f"{len(df_filtered)} Hari")
-        m2.metric("Rata-rata Skor Energi", f"{avg_score:.1f}")
+        m2.metric("Mean Battery Score", f"{avg_score:.1f}")
         m3.metric("Indeks Kelelahan Kritis", f"{exhaustion_rate:.1f}%")
         st.divider()
 
@@ -109,7 +123,9 @@ try:
         # --- 2. BATAS AMAN DURASI ---
         st.header("2. Identifikasi Threshold Durasi terhadap Penurunan Energi")
         fig2, ax2 = plt.subplots(figsize=(12, 5))
-        sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', palette="coolwarm", ax=ax2)
+        # Mengatur agar plot boxplot konsisten dengan filter fokus
+        sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', 
+                    order=focus_categories, palette="coolwarm", ax=ax2)
         st.pyplot(fig2)
 
         subset_lelah = df_filtered[df_filtered['battery_category'] == 'Sangat Lelah']
