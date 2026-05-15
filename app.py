@@ -9,7 +9,7 @@ import numpy as np
 # ==========================================
 st.set_page_config(page_title="Analisis Social Battery & Academic Burnout", layout="wide")
 
-# Custom CSS untuk tampilan yang lebih profesional
+# Custom CSS
 st.markdown("""
     <style>
     [data-testid="stSidebar"] { background-color: #fcfcfc; border-right: 1px solid #e6e6e6; }
@@ -20,6 +20,7 @@ st.markdown("""
 
 @st.cache_data
 def load_data():
+    # Pastikan file CSV tersedia
     df = pd.read_csv("main_data_social_battre.csv")
     month_order = ['January', 'February', 'March', 'April', 'May', 'June',
                    'July', 'August', 'September', 'October', 'November', 'December']
@@ -33,6 +34,17 @@ def load_data():
 
 try:
     df, month_order, day_order = load_data()
+    focus_categories = ['Sangat Lelah', 'Lelah', 'Cukup']
+
+    # ==========================================
+    # LOGIKA RESET (SESSION STATE)
+    # ==========================================
+    # Inisialisasi state jika belum ada
+    if 'selected_months' not in st.session_state:
+        st.session_state.selected_months = month_order
+    
+    if 'selected_categories' not in st.session_state:
+        st.session_state.selected_categories = focus_categories
 
     # ==========================================
     # SIDEBAR (PENGATURAN INSTRUMEN)
@@ -42,23 +54,19 @@ try:
         st.write("Gunakan filter ini untuk menyesuaikan parameter analisis secara dinamis.")
         st.divider()
 
-        # Definisikan kategori fokus (Hanya Sangat Lelah, Lelah, Cukup)
-        focus_categories = ['Sangat Lelah', 'Lelah', 'Cukup']
-
         with st.expander("📅 Periode Analisis", expanded=True):
-            selected_months = st.multiselect(
+            # Widget multiselect terhubung ke session_state via key
+            st.multiselect(
                 "Pilih Bulan:", 
                 options=month_order, 
-                default=month_order,
-                key="month_filter"
+                key="selected_months"
             )
         
         with st.expander("⚡ Kondisi Energi", expanded=True):
-            selected_categories = st.multiselect(
+            st.multiselect(
                 "Level Baterai:", 
                 options=focus_categories, 
-                default=focus_categories,
-                key="cat_filter"
+                key="selected_categories"
             )
         
         st.divider()
@@ -66,15 +74,16 @@ try:
         st.caption("Capstone: Calm Social Battery")
         st.caption("Fokus: Academic Burnout")
         
-        # Perbaikan Tombol Reset: Menghapus state agar kembali ke default
+        # Tombol Reset yang diperbaiki
         if st.button("🔄 Reset Semua Filter"):
-            st.session_state.clear()
+            st.session_state.selected_months = month_order
+            st.session_state.selected_categories = focus_categories
             st.rerun()
 
-    # PROSES FILTERING DATA
+    # PROSES FILTERING DATA menggunakan nilai dari session_state
     df_filtered = df[
-        (df['month_name'].isin(selected_months)) & 
-        (df['battery_category'].isin(selected_categories))
+        (df['month_name'].isin(st.session_state.selected_months)) & 
+        (df['battery_category'].isin(st.session_state.selected_categories))
     ].copy()
 
     # ==========================================
@@ -101,8 +110,10 @@ try:
         st.header("1. Analisis Fluktuasi Kelelahan Sosial Bulanan")
         fig1, ax1 = plt.subplots(figsize=(12, 5))
         df_filtered['is_negative'] = df_filtered['battery_score'] < 0
+        # Menghitung persentase kelelahan kritis (skor < 0)
         data_m = df_filtered.groupby('month_name')['is_negative'].mean() * 100
-        data_m = data_m.reindex([m for m in month_order if m in selected_months])
+        # Reindex agar urutan bulan sesuai kalender
+        data_m = data_m.reindex([m for m in month_order if m in st.session_state.selected_months])
         
         sns.barplot(x=data_m.index, y=data_m.values, palette="magma", ax=ax1)
         ax1.set_ylabel("Persentase Kelelahan (%)")
@@ -113,17 +124,16 @@ try:
             max_month = data_m.idxmax()
             min_month = data_m.idxmin()
             st.markdown(f"""
-            **Keterangan:** Grafik ini menunjukkan pola musiman kelelahan sosial. Bulan **{max_month}** diidentifikasi sebagai periode dengan tingkat kelelahan tertinggi, yang kemungkinan besar dipicu oleh akumulasi stresor akademik (seperti pekan ujian atau tugas besar). Sebaliknya, bulan **{min_month}** menunjukkan fase stabilisasi energi di mana beban sosial berada dalam batas toleransi pengguna. Penurunan kelelahan di bulan {min_month} menjadi bukti bahwa adanya waktu jeda dapat menjaga kestabilan energi mental secara signifikan.
+            **Keterangan:** Grafik ini menunjukkan pola musiman kelelahan sosial. Bulan **{max_month}** diidentifikasi sebagai periode dengan tingkat kelelahan tertinggi. Sebaliknya, bulan **{min_month}** menunjukkan fase stabilisasi energi.
             """)
             st.success(f"""
-            ✅ **Solusi Strategis:** Untuk memitigasi lonjakan beban di bulan **{max_month}**, pengguna perlu menerapkan *pre-emptive rest* (istirahat terencana sebelum masa sibuk tiba). Mengadopsi manajemen kegiatan seperti pada bulan **{min_month}** dapat membantu mencegah akumulasi stres yang berujung pada **Academic Burnout**.
+            ✅ **Solusi Strategis:** Untuk memitigasi lonjakan beban di bulan **{max_month}**, pengguna perlu menerapkan *pre-emptive rest*.
             """)
         st.divider()
 
         # --- 2. BATAS AMAN DURASI ---
         st.header("2. Identifikasi Threshold Durasi terhadap Penurunan Energi")
         fig2, ax2 = plt.subplots(figsize=(12, 5))
-        # Mengatur agar plot boxplot konsisten dengan filter fokus
         sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', 
                     order=focus_categories, palette="coolwarm", ax=ax2)
         st.pyplot(fig2)
@@ -132,10 +142,10 @@ try:
         median_val = subset_lelah['total_duration_minutes'].median() if not subset_lelah.empty else df_filtered['total_duration_minutes'].median()
         
         st.markdown(f"""
-        **Keterangan:** Berdasarkan distribusi statistik di atas, terlihat korelasi yang jelas antara durasi aktivitas dengan penurunan level energi. Kondisi 'Sangat Lelah' secara konsisten muncul ketika durasi interaksi sosial mencapai median **{median_val:.0f} menit**. Ini membuktikan bahwa kapasitas baterai sosial memiliki ambang batas durasi tertentu, di mana setelah melewati batas tersebut, pemulihan energi akan menjadi jauh lebih lambat.
+        **Keterangan:** Kondisi 'Sangat Lelah' secara konsisten muncul ketika durasi interaksi sosial mencapai median **{median_val:.0f} menit**.
         """)
         st.success(f"""
-        ✅ **Solusi Strategis:** Tetapkan durasi **{median_val:.0f} menit** sebagai batas aman interaksi sosial harian. Pengguna disarankan untuk mulai melakukan 'penarikan diri secara bertahap' dari lingkungan sosial sebelum mencapai batas durasi ini guna melindungi cadangan energi mental dari risiko **Academic Burnout**.
+        ✅ **Solusi Strategis:** Tetapkan durasi **{median_val:.0f} menit** sebagai batas aman interaksi sosial harian.
         """)
         st.divider()
 
@@ -151,24 +161,24 @@ try:
         if not data_d.dropna().empty:
             low_day = data_d.idxmin()
             st.markdown(f"""
-            **Keterangan:** Grafik ini mengungkap fenomena penurunan energi di tengah minggu, dengan hari **{low_day}** sebagai titik terendah. Hal ini mencerminkan adanya akumulasi beban sosial dari awal minggu yang tidak terkompensasi oleh waktu pemulihan memadai. Tanpa adanya intervensi di hari kritis ini, kelelahan sosial akan terus terbawa hingga akhir pekan dan menurunkan produktivitas akademik secara keseluruhan.
+            **Keterangan:** Grafik ini mengungkap fenomena penurunan energi di tengah minggu, dengan hari **{low_day}** sebagai titik terendah.
             """)
             st.success(f"""
-            ✅ **Solusi Strategis:** Mengingat hari **{low_day}** adalah hari produktif, solusinya bukan menghindari kegiatan, melainkan menerapkan strategi **'Micro-recovery'**. Luangkan waktu 15-30 menit di sela-sela jadwal kuliah untuk menyendiri tanpa distraksi sensorik. Selain itu, hindari pengambilan keputusan besar atau pertemuan sosial intensitas tinggi di hari {low_day} untuk menjaga stabilitas emosional dari ancaman **Academic Burnout**.
+            ✅ **Solusi Strategis:** Terapkan strategi **'Micro-recovery'** pada hari {low_day}.
             """)
         st.divider()
 
-        # --- 4. KORELASI INTENSITAS (KERAMAIAN) ---
+        # --- 4. KORELASI INTENSITAS ---
         st.header("4. Signifikansi Korelasi: Intensitas Lingkungan terhadap Degradasi Energi")
         fig4, ax4 = plt.subplots(figsize=(12, 5))
         sns.regplot(data=df_filtered, x='social_intensity_score', y='battery_score', scatter_kws={'alpha':0.2}, line_kws={'color':'red'}, ax=ax4)
         st.pyplot(fig4)
         
         st.markdown("""
-        **Keterangan:** Melalui model regresi linear ini, ditemukan bukti empiris bahwa intensitas lingkungan (keramaian, kebisingan, dan beban interaksi) memiliki pengaruh negatif yang signifikan terhadap sisa energi. Semakin tinggi beban sensorik di lingkungan sosial, semakin cepat laju *social exhaustion* terjadi. Hal ini membuktikan bahwa lingkungan yang terlalu menstimulasi otak secara berlebihan merupakan faktor pemicu utama kelelahan mental bagi mahasiswa.
+        **Keterangan:** Ditemukan bukti empiris bahwa intensitas lingkungan memiliki pengaruh negatif signifikan terhadap sisa energi.
         """)
         st.success("""
-        ✅ **Solusi Strategis:** Terapkan teknik **'Social Pacing'**. Jika Anda harus berada di lingkungan yang ramai (seperti kantin atau ruang rapat besar), pastikan durasinya diimbangi dengan sesi tenang sesudahnya. Penggunaan alat bantu seperti penutup telinga atau sekadar berpindah ke area yang lebih sepi selama beberapa menit terbukti efektif mengurangi beban sensorik dan mencegah gejala awal **Academic Burnout**.
+        ✅ **Solusi Strategis:** Terapkan teknik **'Social Pacing'** untuk mengurangi beban sensorik.
         """)
         st.divider()
 
@@ -180,14 +190,14 @@ try:
         st.pyplot(fig5)
         
         st.markdown("""
-        **Keterangan:** Perbandingan rata-rata skor energi antara dua kelompok ini menunjukkan efektivitas manajemen waktu yang sangat kontras. Kelompok 'Terkontrol' memiliki resiliensi energi yang jauh lebih stabil dibandingkan kelompok 'Berisiko'. Hal ini memvalidasi secara ilmiah bahwa pembatasan waktu aktif adalah intervensi yang paling aplikatif dan efektif untuk menghindari kondisi kelelahan klinis.
+        **Keterangan:** Kelompok 'Terkontrol' memiliki resiliensi energi yang jauh lebih stabil dibandingkan kelompok 'Berisiko'.
         """)
         st.success("""
-        ✅ **Solusi Strategis:** Disiplin dalam menjaga durasi kegiatan tetap pada zona 'Terkontrol' adalah strategi jangka panjang terbaik. Dengan menjaga konsistensi durasi aktif harian di bawah ambang batas kritis, pengguna dapat memastikan kapasitas kognitif tetap prima untuk menghadapi tantangan akademik harian tanpa risiko **Academic Burnout**.
+        ✅ **Solusi Strategis:** Disiplin menjaga durasi kegiatan pada zona 'Terkontrol' adalah strategi terbaik menghindari **Academic Burnout**.
         """)
 
     st.divider()
-    st.info("💡 **Catatan Akademis:** Dashboard ini dirancang untuk mendeteksi pola kelelahan sosial mahasiswa secara proaktif. Gunakan solusi strategis yang disediakan sebagai panduan mitigasi dini.")
+    st.info("💡 **Catatan Akademis:** Dashboard dirancang untuk mendeteksi pola kelelahan sosial secara proaktif.")
 
 except Exception as e:
-    st.error(f"⚠️ Terjadi kesalahan teknis dalam memproses data: {e}")
+    st.error(f"⚠️ Terjadi kesalahan: {e}")
