@@ -132,12 +132,23 @@ try:
         sns.boxplot(data=df_filtered, x='battery_category', y='total_duration_minutes', palette="coolwarm", ax=ax2)
         st.pyplot(fig2)
 
-        median_dur = df_filtered[df_filtered['battery_category'] == 'Sangat Lelah']['total_duration_minutes'].median() if 'Sangat Lelah' in df_filtered['battery_category'].values else 0
+        # Logika Perbaikan: Mencari median durasi pada kategori dengan tingkat energi terendah
+        if not df_filtered.empty:
+            # Mengambil kategori pertama (kategori paling kiri/paling lelah)
+            target_cat = df_filtered['battery_category'].cat.categories[0] 
+            subset_exhausted = df_filtered[df_filtered['battery_category'] == target_cat]
+            
+            if not subset_exhausted.empty:
+                median_dur = subset_exhausted['total_duration_minutes'].median()
+            else:
+                median_dur = 0
+        else:
+            median_dur = 0
+
         st.markdown(f"""
-        **Keterangan:** Lewat grafik ini, kita menemukan kalau orang yang merasa 'Sangat Lelah' biasanya punya durasi kegiatan sosial di angka **{median_dur:.0f} menit**. Ini jadi tanda kalau durasi yang terlalu lama adalah pemicu utama kenapa energi sosial kita cepat habis.
+        **Keterangan:** Lewat grafik ini, kita menemukan kalau saat kondisi **{target_cat}**, durasi kegiatan sosial rata-rata berada di angka **{median_dur:.0f} menit**. Ini jadi indikator penting bahwa durasi yang berlebihan berkaitan langsung dengan habisnya baterai sosial secara drastis.
         """)
-        st.success(f"✅ **Solusi Strategis:** Coba batasi interaksi harian maksimal **{median_dur:.0f} menit**. Langkah ini sangat penting untuk menjaga diri agar tidak terjebak dalam kondisi **Academic Burnout** akibat kelelahan fisik dan mental.")
-        st.divider()
+        st.success(f"✅ **Solusi Strategis:** Usahakan untuk membatasi interaksi harian agar tidak jauh melampaui **{median_dur:.0f} menit**. Pengaturan waktu yang disiplin adalah kunci utama untuk menjaga stabilitas mental dan mencegah risiko **Academic Burnout**.")
 
         # ==========================================
         # 3. POLA HARIAN
