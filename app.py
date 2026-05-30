@@ -68,7 +68,7 @@ if main_menu == "Halaman Utama (Beranda)":
         * **[3]** Kaitan Kondisi Fisik dengan Emosi
         """)
     st.divider()
-    st.caption("🏷️ Status: Terhubung ke GitHub & Streamlit Cloud | Jurusan Matematika, Universitas Airlangga")
+    st.caption("🏷️ Capstone Project Calm (PSU122, Coding Camp 2026)")
 
 # =============================================================================
 # MODUL 1: SOCIAL BATTERY
