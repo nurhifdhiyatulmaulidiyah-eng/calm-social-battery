@@ -127,19 +127,25 @@ elif main_menu == "🔋 Modul 1: Social Battery":
         axes_eda[0].hist(df['battery_score'], bins=30, edgecolor='black', color='skyblue')
         axes_eda[0].axvline(x=50, color='orange', linestyle='--', label='Batas Low (<50)')
         axes_eda[0].axvline(x=80, color='green', linestyle='--', label='Batas High (>80)')
-        axes_eda[0].set_xlabel('Battery Score'); axes_eda[0].set_ylabel('Frekuensi')
-        axes_eda[0].set_title('Distribusi Battery Score'); axes_eda[0].legend()
+        axes_eda[0].set_xlabel('Battery Score')
+        axes_eda[0].set_ylabel('Frekuensi')
+        axes_eda[0].set_title('Distribusi Battery Score')
+        axes_eda[0].legend()
 
         box = axes_eda[1].boxplot(df['battery_score'], vert=True, patch_artist=True)
         box['boxes'][0].set_facecolor('lightgreen')
-        axes_eda[1].set_ylabel('Battery Score'); axes_eda[1].set_title('Boxplot Battery Score')
+        axes_eda[1].set_ylabel('Battery Score')
+        axes_eda[1].set_title('Boxplot Battery Score')
         axes_eda[1].axhline(y=50, color='orange', linestyle='--')
         axes_eda[1].axhline(y=80, color='green', linestyle='--')
 
         axes_eda[2].hist(df['total_duration_minutes'], bins=30, edgecolor='black', color='coral')
-        axes_eda[2].set_xlabel('Total Durasi (menit)'); axes_eda[2].set_ylabel('Frekuensi')
+        axes_eda[2].set_xlabel('Total Durasi (menit)')
+        axes_eda[2].set_ylabel('Frekuensi')
         axes_eda[2].set_title('Distribusi Total Durasi Sosial')
-        plt.tight_layout(); st.pyplot(fig_eda); plt.close(fig_eda)
+        plt.tight_layout()
+        st.pyplot(fig_eda)
+        plt.close(fig_eda)
 
         st.markdown("""
         **Keterangan:**
@@ -153,54 +159,52 @@ elif main_menu == "🔋 Modul 1: Social Battery":
         st.markdown('**Soal:** *"Berapa persentase pengguna yang mengalami kelelahan sosial tingkat tinggi (battery_score < 20) di setiap bulan, dan bagaimana tren perkembangannya dari Januari hingga Desember 2026?"*')
         st.markdown('**Indikator:** Fokus pada pengguna dengan battery_score di bawah 20.')
 
-        # PERBAIKAN UTAMA: hitung persentase dari total baris per bulan, bukan nunique user_id
-        df_p1 = df.copy()
-        df_p1['is_exhausted_critical'] = df_p1['battery_score'] < 20
-
-        monthly_stats = df_p1.groupby('month_name', observed=False).agg(
-            total_records=('battery_score', 'count'),
-            exhausted_count=('is_exhausted_critical', 'sum')
+        # PERBAIKAN: gunakan is_low_battery + nunique user_id sesuai notebook asli
+        monthly_stats = df.groupby('month_name', observed=False).agg(
+            total_users=('user_id', 'nunique'),
+            low_battery_count=('is_low_battery', 'sum')
         )
-        monthly_stats['exhausted_pct'] = (
-            monthly_stats['exhausted_count'] /
-            monthly_stats['total_records'].replace(0, np.nan)
+        monthly_stats['low_battery_pct'] = (
+            monthly_stats['low_battery_count'] /
+            monthly_stats['total_users'].replace(0, np.nan)
         ) * 100
         monthly_stats = monthly_stats.reindex(month_order)
-        monthly_stats = monthly_stats.dropna(subset=['exhausted_pct'])
+        monthly_stats = monthly_stats.dropna(subset=['low_battery_pct'])
 
         if not monthly_stats.empty:
-            avg_val = monthly_stats['exhausted_pct'].mean()
-            max_month = monthly_stats['exhausted_pct'].idxmax()
-            min_month = monthly_stats['exhausted_pct'].idxmin()
+            avg_val = monthly_stats['low_battery_pct'].mean()
+            max_month = monthly_stats['low_battery_pct'].idxmax()
+            min_month = monthly_stats['low_battery_pct'].idxmin()
 
             fig1, ax1 = plt.subplots(figsize=(14, 6))
-            norm_vals = monthly_stats['exhausted_pct'] / monthly_stats['exhausted_pct'].max()
+            norm_vals = monthly_stats['low_battery_pct'] / monthly_stats['low_battery_pct'].max()
             colors_p1 = plt.cm.RdYlGn_r(norm_vals)
-            bars1 = ax1.bar(monthly_stats.index, monthly_stats['exhausted_pct'],
+            bars1 = ax1.bar(monthly_stats.index, monthly_stats['low_battery_pct'],
                             color=colors_p1, edgecolor='black', linewidth=1)
             ax1.axhline(y=avg_val, color='blue', linestyle='--',
                         label=f'Rata-rata ({avg_val:.2f}%)')
             ax1.set_xlabel('Bulan', fontsize=12)
-            ax1.set_ylabel('Persentase Kelelahan Kritis (battery_score < 20) (%)', fontsize=12)
-            ax1.set_title('Tren Persentase Kelelahan Sosial Kritis Bulanan (2026)',
+            ax1.set_ylabel('Persentase Low Battery (< 50) (%)', fontsize=12)
+            ax1.set_title('Tren Persentase Kelompok Low Battery Bulanan (Januari – Desember 2026)',
                           fontsize=14, fontweight='bold')
             ax1.legend()
-            ax1.set_ylim(0, monthly_stats['exhausted_pct'].max() + 10)
-            for bar, pct in zip(bars1, monthly_stats['exhausted_pct']):
+            ax1.set_ylim(0, monthly_stats['low_battery_pct'].max() + 10)
+            for bar, pct in zip(bars1, monthly_stats['low_battery_pct']):
                 ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.3,
                          f'{pct:.2f}%', ha='center', va='bottom', fontsize=9)
-            plt.xticks(rotation=45); plt.tight_layout()
-            st.pyplot(fig1); plt.close(fig1)
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(fig1)
+            plt.close(fig1)
 
-            # Tabel ringkasan
             st.write("**Tabel Statistik Bulanan:**")
-            tabel_p1 = monthly_stats[['total_records', 'exhausted_count', 'exhausted_pct']].copy()
-            tabel_p1.columns = ['Total Records', 'Jumlah Kelelahan Kritis', 'Persentase (%)']
+            tabel_p1 = monthly_stats[['total_users', 'low_battery_count', 'low_battery_pct']].copy()
+            tabel_p1.columns = ['Total Pengguna Unik', 'Jumlah Low Battery', 'Persentase (%)']
             tabel_p1['Persentase (%)'] = tabel_p1['Persentase (%)'].round(2)
             st.dataframe(tabel_p1)
 
             st.markdown(f"""
-            **Keterangan:** Bulan **{max_month}** memiliki tingkat kelelahan kritis tertinggi,
+            **Keterangan:** Bulan **{max_month}** memiliki tingkat kelelahan tertinggi,
             kemungkinan dipicu oleh akumulasi stresor akademik (pekan ujian atau tugas besar).
             Bulan **{min_month}** menunjukkan fase stabilisasi energi terbaik — bukti bahwa
             adanya waktu jeda dapat menjaga kestabilan energi mental secara signifikan.
@@ -238,16 +242,21 @@ elif main_menu == "🔋 Modul 1: Social Battery":
                              label=f'Median Low: {threshold_median:.0f} mnt')
             axes2[0].axvline(x=safe_threshold, color='darkgreen', linestyle='--',
                              label=f'Q25 Sehat: {safe_threshold:.0f} mnt')
-            axes2[0].set_xlabel('Total Durasi (menit)'); axes2[0].set_ylabel('Frekuensi')
-            axes2[0].set_title('Distribusi Durasi: Low Battery vs Normal'); axes2[0].legend()
+            axes2[0].set_xlabel('Total Durasi (menit)')
+            axes2[0].set_ylabel('Frekuensi')
+            axes2[0].set_title('Distribusi Durasi: Low Battery vs Normal')
+            axes2[0].legend()
 
             sns.boxplot(data=df, x='battery_category_3', y='total_duration_minutes',
                         order=['Low (<50)', 'Medium (50-80)', 'High (>80)'],
                         ax=axes2[1], palette='RdYlGn_r',
                         hue='battery_category_3', legend=False)
-            axes2[1].set_xlabel('Kategori Battery Score'); axes2[1].set_ylabel('Total Durasi (menit)')
+            axes2[1].set_xlabel('Kategori Battery Score')
+            axes2[1].set_ylabel('Total Durasi (menit)')
             axes2[1].set_title('Durasi Sosial per Kategori Battery')
-            plt.tight_layout(); st.pyplot(fig2); plt.close(fig2)
+            plt.tight_layout()
+            st.pyplot(fig2)
+            plt.close(fig2)
 
             st.markdown(f"""
             **Keterangan:** Kondisi Low Battery secara konsisten muncul saat durasi interaksi sosial mencapai
@@ -289,7 +298,8 @@ elif main_menu == "🔋 Modul 1: Social Battery":
                                 linestyle='--',
                                 label=f"Rata-rata: {statistik_harian['rata_rata_baterai'].mean():.2f}")
             axes3[0, 0].set_ylabel('Rata-rata Skor Baterai')
-            axes3[0, 0].set_title('Rata-rata Skor Baterai per Hari'); axes3[0, 0].legend()
+            axes3[0, 0].set_title('Rata-rata Skor Baterai per Hari')
+            axes3[0, 0].legend()
 
             axes3[0, 1].bar(statistik_harian.index, statistik_harian['persen_low'],
                             color='coral', edgecolor='black')
@@ -301,8 +311,10 @@ elif main_menu == "🔋 Modul 1: Social Battery":
                         hue='hari_ini', legend=False)
             axes3[1, 0].axhline(y=50, color='orange', linestyle='--', alpha=0.7, label='Batas Low (<50)')
             axes3[1, 0].axhline(y=80, color='green', linestyle='--', alpha=0.7, label='Batas High (>80)')
-            axes3[1, 0].set_xlabel('Hari'); axes3[1, 0].set_ylabel('Skor Baterai')
-            axes3[1, 0].set_title('Distribusi Skor Baterai per Hari'); axes3[1, 0].legend()
+            axes3[1, 0].set_xlabel('Hari')
+            axes3[1, 0].set_ylabel('Skor Baterai')
+            axes3[1, 0].set_title('Distribusi Skor Baterai per Hari')
+            axes3[1, 0].legend()
 
             axes3[1, 1].plot(list(statistik_harian.index), statistik_harian['rata_rata_baterai'],
                              'o-', linewidth=2, markersize=8, color='steelblue')
@@ -314,15 +326,17 @@ elif main_menu == "🔋 Modul 1: Social Battery":
             axes3[1, 1].set_ylabel('Rata-rata Skor Baterai')
             axes3[1, 1].set_title('Tren Naik-Turun Energi dalam Seminggu')
 
-            plt.tight_layout(); st.pyplot(fig3); plt.close(fig3)
+            plt.tight_layout()
+            st.pyplot(fig3)
+            plt.close(fig3)
 
             st.markdown(f"""
             **Keterangan:** Hari **{hari_terburuk}** teridentifikasi sebagai hari dengan energi terendah
-            akibat akumulasi beban sosial dari awal minggu. Hari **{hari_terbaik}** adalah hari dengan
-            kondisi energi paling prima.
+            akibat akumulasi beban sosial. Hari **{hari_terbaik}** adalah hari dengan
+            kondisi energi paling tinggi.
             """)
-            st.success(f"✅ **Solusi Strategis:** Terapkan **'Micro-recovery'** di hari **{hari_terburuk}** "
-                       f"— luangkan 15–30 menit menyendiri tanpa distraksi sensorik untuk mencegah **Academic Burnout**.")
+            st.success(f"✅ **Solusi Strategis:** Terapkan **'Micro-break'** di hari **{hari_terburuk}** "
+                       f"— luangkan 15-30 menit menyendiri atau istirahat untuk mencegah **Academic Burnout**.")
         st.divider()
 
         # ── PERTANYAAN 4 ────────────────────────────────────────────────────
@@ -334,39 +348,88 @@ elif main_menu == "🔋 Modul 1: Social Battery":
         if len(df_p4) >= 2:
             r_val, p_val_r = pearsonr(df_p4['social_intensity_score'], df_p4['battery_score'])
 
-            col_p4a, col_p4b = st.columns(2)
+            if r_val < -0.7:
+                kekuatan = "Sangat Kuat (Negatif)"
+            elif r_val < -0.5:
+                kekuatan = "Kuat (Negatif)"
+            elif r_val < -0.3:
+                kekuatan = "Sedang (Negatif)"
+            elif r_val < 0:
+                kekuatan = "Lemah (Negatif)"
+            elif r_val < 0.3:
+                kekuatan = "Lemah (Positif)"
+            elif r_val < 0.5:
+                kekuatan = "Sedang (Positif)"
+            elif r_val < 0.7:
+                kekuatan = "Kuat (Positif)"
+            else:
+                kekuatan = "Sangat Kuat (Positif)"
+
+            col_p4a, col_p4b, col_p4c = st.columns(3)
             col_p4a.metric("Korelasi Pearson (r)", f"{r_val:.4f}")
             col_p4b.metric("p-value", f"{p_val_r:.4e}")
+            col_p4c.metric("Kekuatan Korelasi", kekuatan)
 
-            fig4, axes4 = plt.subplots(1, 2, figsize=(14, 5))
+            fig4, axes4 = plt.subplots(1, 3, figsize=(18, 5))
 
-            sns.regplot(data=df_p4, x='social_intensity_score', y='battery_score',
-                        scatter_kws={'alpha': 0.2, 'color': 'steelblue'},
-                        line_kws={'color': 'red', 'linewidth': 2}, ax=axes4[0])
-            axes4[0].set_xlabel('Social Intensity Score'); axes4[0].set_ylabel('Battery Score')
-            axes4[0].set_title(f'Korelasi Intensitas vs Baterai (r = {r_val:.3f})', fontweight='bold')
-            axes4[0].text(0.05, 0.95, f'r = {r_val:.4f}\np = {p_val_r:.4e}',
-                          transform=axes4[0].transAxes, verticalalignment='top',
-                          bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            # Plot 1: Scatter Plot + Garis Tren Regresi Linear
+            axes4[0].scatter(df_p4['social_intensity_score'], df_p4['battery_score'],
+                             alpha=0.5, c='steelblue', edgecolors='white', linewidth=0.5)
+            z = np.polyfit(df_p4['social_intensity_score'], df_p4['battery_score'], 1)
+            p_line = np.poly1d(z)
+            axes4[0].plot(df_p4['social_intensity_score'].sort_values(),
+                          p_line(df_p4['social_intensity_score'].sort_values()),
+                          "r--", linewidth=2, label=f'Garis Tren (r={r_val:.3f})')
+            axes4[0].axhline(y=50, color='gray', linestyle='-', alpha=0.4, label='Batas Low (<50)')
+            axes4[0].set_xlabel('Skor Intensitas Sosial')
+            axes4[0].set_ylabel('Skor Baterai Sosial')
+            axes4[0].set_title(f'Korelasi Intensitas vs Baterai\n(r = {r_val:.3f}, p = {p_val_r:.2e})',
+                               fontweight='bold')
+            axes4[0].legend()
+            axes4[0].grid(True, alpha=0.3)
 
+            # Plot 2: Hexbin Plot – Kepadatan Titik Data
+            hb = axes4[1].hexbin(df_p4['social_intensity_score'], df_p4['battery_score'],
+                                 gridsize=25, cmap='YlOrRd', bins='log')
+            axes4[1].set_xlabel('Skor Intensitas Sosial')
+            axes4[1].set_ylabel('Skor Baterai Sosial')
+            axes4[1].set_title('Kepadatan Sebaran Data (Hexbin Plot)')
+            plt.colorbar(hb, ax=axes4[1], label='Jumlah Data (Skala Log)')
+
+            # Plot 3: Bar Rata-rata Baterai per Kelompok Intensitas
             df_p4_copy = df.copy()
-            df_p4_copy['intensity_cat'] = pd.cut(df_p4_copy['social_intensity_score'],
-                                                 bins=[0, 25, 50, 75, 100],
-                                                 labels=['Sangat Rendah', 'Rendah', 'Sedang', 'Tinggi'])
-            sns.boxplot(data=df_p4_copy, x='intensity_cat', y='battery_score',
-                        palette='RdYlGn_r', ax=axes4[1], hue='intensity_cat', legend=False)
-            axes4[1].set_xlabel('Kategori Intensitas Sosial'); axes4[1].set_ylabel('Battery Score')
-            axes4[1].set_title('Distribusi Baterai per Level Intensitas')
+            df_p4_copy['kelompok_intensitas'] = pd.cut(
+                df_p4_copy['social_intensity_score'],
+                bins=[0, 30, 50, 80],
+                labels=['0-30 (Rendah)', '30-50 (Sedang)', '50-80 (Tinggi)']
+            )
+            stats_intensitas = (
+                df_p4_copy.groupby('kelompok_intensitas', observed=False)['battery_score']
+                .mean()
+                .sort_index()
+            )
+            warna_intensitas = ['green', 'orange', 'red']
+            axes4[2].bar(stats_intensitas.index, stats_intensitas.values,
+                         color=warna_intensitas, edgecolor='black')
+            axes4[2].set_ylabel('Rata-rata Skor Baterai')
+            axes4[2].set_title('Rata-rata Skor Baterai per Tingkat Intensitas')
+            axes4[2].set_ylim(0, 100)
+            for i, (grup, nilai) in enumerate(stats_intensitas.items()):
+                axes4[2].annotate(f'{nilai:.2f}', (i, nilai),
+                                  textcoords="offset points", xytext=(0, 5),
+                                  ha='center', fontweight='bold')
 
-            plt.tight_layout(); st.pyplot(fig4); plt.close(fig4)
+            plt.tight_layout()
+            st.pyplot(fig4)
+            plt.close(fig4)
 
             st.markdown(f"""
             **Keterangan:** Ditemukan bukti empiris bahwa intensitas lingkungan sosial memiliki
-            pengaruh **negatif** terhadap sisa energi (r = {r_val:.4f}). Semakin tinggi beban
-            sensorik, semakin cepat *social exhaustion* terjadi.
+            pengaruh **negatif** terhadap sisa energi (r = {r_val:.4f}, {kekuatan}).
+            Semakin tinggi beban sensorik, semakin cepat *social exhaustion* terjadi.
             """)
             st.success("✅ **Solusi Strategis:** Terapkan **'Social Pacing'** — jika harus di lingkungan "
-                       "ramai, imbangi dengan sesi tenang sesudahnya untuk mencegah **Academic Burnout**.")
+                       "ramai, imbangi dengan 'Downtime' (sesi tenang) sesudahnya untuk mencegah **Academic Burnout**.")
         st.divider()
 
         # ── PERTANYAAN 5 ────────────────────────────────────────────────────
@@ -400,7 +463,8 @@ elif main_menu == "🔋 Modul 1: Social Battery":
             bp['boxes'][0].set_facecolor('lightgreen')
             bp['boxes'][1].set_facecolor('lightcoral')
             axes5[0, 0].axhline(y=50, color='orange', linestyle='--', label='Batas Low (<50)')
-            axes5[0, 0].set_ylabel('Skor Baterai'); axes5[0, 0].legend()
+            axes5[0, 0].set_ylabel('Skor Baterai')
+            axes5[0, 0].legend()
             axes5[0, 0].set_title('Perbandingan Distribusi Skor Baterai')
             axes5[0, 0].grid(True, alpha=0.3)
 
@@ -414,8 +478,10 @@ elif main_menu == "🔋 Modul 1: Social Battery":
             axes5[0, 1].axvline(x=kelompok_B['battery_score'].mean(), color='darkred',
                                 linestyle='--',
                                 label=f"Rata-rata B: {kelompok_B['battery_score'].mean():.2f}")
-            axes5[0, 1].set_xlabel('Skor Baterai'); axes5[0, 1].set_ylabel('Frekuensi')
-            axes5[0, 1].set_title('Distribusi Skor Baterai (Overlay)'); axes5[0, 1].legend()
+            axes5[0, 1].set_xlabel('Skor Baterai')
+            axes5[0, 1].set_ylabel('Frekuensi')
+            axes5[0, 1].set_title('Distribusi Skor Baterai (Overlay)')
+            axes5[0, 1].legend()
 
             nilai_rata = [kelompok_A['battery_score'].mean(), kelompok_B['battery_score'].mean()]
             bars5 = axes5[1, 0].bar(
@@ -434,7 +500,8 @@ elif main_menu == "🔋 Modul 1: Social Battery":
             axes5[1, 1].bar(['Kelompok A', 'Kelompok B'], [persen_low_A, persen_low_B],
                             bottom=normal_pct, label='Low Battery (<50)',
                             color='#ff6b6b', edgecolor='black', width=0.5)
-            axes5[1, 1].set_ylabel('Persentase (%)'); axes5[1, 1].set_ylim(0, 115)
+            axes5[1, 1].set_ylabel('Persentase (%)')
+            axes5[1, 1].set_ylim(0, 115)
             axes5[1, 1].set_title('Komposisi Low Battery per Kelompok')
             axes5[1, 1].legend(loc='upper right')
             for i, (lp, np_) in enumerate(zip([persen_low_A, persen_low_B], normal_pct)):
@@ -443,7 +510,9 @@ elif main_menu == "🔋 Modul 1: Social Battery":
                 axes5[1, 1].text(i, np_ + lp / 2, f'{lp:.1f}%', ha='center', va='center',
                                  fontsize=10, color='white', fontweight='bold')
 
-            plt.tight_layout(); st.pyplot(fig5); plt.close(fig5)
+            plt.tight_layout()
+            st.pyplot(fig5)
+            plt.close(fig5)
 
             if p_val_t < 0.05:
                 status = "**SIGNIFIKAN** (p < 0.05)"
@@ -520,7 +589,8 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
         fig_dist, axes_dist = plt.subplots(1, 2, figsize=(14, 5))
         axes_dist[0].bar(mood_counts.index, mood_counts.values, color=bar_colors_mj, edgecolor='black')
         axes_dist[0].set_title('Distribusi Frekuensi Mood', fontsize=14, fontweight='bold')
-        axes_dist[0].set_xlabel('Kategori Mood'); axes_dist[0].set_ylabel('Jumlah Catatan')
+        axes_dist[0].set_xlabel('Kategori Mood')
+        axes_dist[0].set_ylabel('Jumlah Catatan')
         axes_dist[0].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
         for i, v in enumerate(mood_counts.values):
             axes_dist[0].text(i, v + 25, str(int(v)), ha='center', fontweight='bold')
@@ -529,7 +599,9 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
                          autopct='%1.1f%%', colors=bar_colors_mj,
                          startangle=90, explode=[0.05] * len(mood_counts))
         axes_dist[1].set_title('Proporsi Kondisi Mental Mahasiswa', fontsize=14, fontweight='bold')
-        plt.tight_layout(); st.pyplot(fig_dist); plt.close(fig_dist)
+        plt.tight_layout()
+        st.pyplot(fig_dist)
+        plt.close(fig_dist)
 
         st.write("**Visualisasi Word Cloud Dominan (Grid 2×2):**")
         extended_stopwords = {
@@ -572,7 +644,9 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
                 axes_wc[i].axis('off')
             for j in range(len(moods_unik), len(axes_wc)):
                 axes_wc[j].axis('off')
-            plt.tight_layout(); st.pyplot(fig_wc); plt.close(fig_wc)
+            plt.tight_layout()
+            st.pyplot(fig_wc)
+            plt.close(fig_wc)
 
         st.markdown("""
         **Keterangan:**
@@ -622,7 +696,8 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
             axes_p1mj[0].bar(top5_sedih.keys(), top5_sedih.values(),
                              color='#5D9B9B', edgecolor='black')
             axes_p1mj[0].set_title('Top 5 Kata Kunci — Mood SEDIH', fontsize=13, fontweight='bold')
-            axes_p1mj[0].set_xlabel('Kata Kunci'); axes_p1mj[0].set_ylabel('Frekuensi')
+            axes_p1mj[0].set_xlabel('Kata Kunci')
+            axes_p1mj[0].set_ylabel('Frekuensi')
             axes_p1mj[0].get_yaxis().set_major_formatter(
                 plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
             if top5_sedih:
@@ -634,7 +709,8 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
             axes_p1mj[1].bar(top5_cemas.keys(), top5_cemas.values(),
                              color='#E9C46A', edgecolor='black')
             axes_p1mj[1].set_title('Top 5 Kata Kunci — Mood CEMAS', fontsize=13, fontweight='bold')
-            axes_p1mj[1].set_xlabel('Kata Kunci'); axes_p1mj[1].set_ylabel('Frekuensi')
+            axes_p1mj[1].set_xlabel('Kata Kunci')
+            axes_p1mj[1].set_ylabel('Frekuensi')
             axes_p1mj[1].get_yaxis().set_major_formatter(
                 plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
             if top5_cemas:
@@ -643,7 +719,9 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
                     axes_p1mj[1].text(i, v + max_c * 0.02, str(int(v)),
                                       ha='center', fontweight='bold')
 
-            plt.tight_layout(); st.pyplot(fig_p1mj); plt.close(fig_p1mj)
+            plt.tight_layout()
+            st.pyplot(fig_p1mj)
+            plt.close(fig_p1mj)
 
             top_sedih_list = list(top5_sedih.keys())
             top_cemas_list = list(top5_cemas.keys())
@@ -695,15 +773,17 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
                                    color=['#F4A261', '#5D9B9B'], edgecolor='black', width=0.4)
             ax_p2mj.set_ylim(0, max(pct_b, pct_s) + 15)
             ax_p2mj.set_title('Persentase Catatan dengan Interaksi Sosial',
-                              fontsize=14, fontweight='bold')
+                               fontsize=14, fontweight='bold')
             ax_p2mj.set_ylabel('Persentase (%)')
             ax_p2mj.get_yaxis().set_major_formatter(
                 plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
             for bar, pct, cnt in zip(bars_p2, [pct_b, pct_s], [cnt_b, cnt_s]):
                 ax_p2mj.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1,
-                             f'{pct:.1f}%\n({int(cnt)} catatan)',
-                             ha='center', va='bottom', fontweight='bold')
-            plt.tight_layout(); st.pyplot(fig_p2mj); plt.close(fig_p2mj)
+                              f'{pct:.1f}%\n({int(cnt)} catatan)',
+                              ha='center', va='bottom', fontweight='bold')
+            plt.tight_layout()
+            st.pyplot(fig_p2mj)
+            plt.close(fig_p2mj)
 
             st.markdown(f"""
             **Keterangan:**
@@ -752,15 +832,17 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
                                    color=['#E76F51', '#F4A261'], edgecolor='black', width=0.4)
             ax_p3mj.set_ylim(0, max(pct_neg, pct_pos) + 15)
             ax_p3mj.set_title('Persentase Catatan yang Menyebut Kondisi Fisik',
-                              fontsize=14, fontweight='bold')
+                               fontsize=14, fontweight='bold')
             ax_p3mj.set_ylabel('Persentase (%)')
             ax_p3mj.get_yaxis().set_major_formatter(
                 plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
             for bar, pct, cnt in zip(bars_p3, [pct_neg, pct_pos], [cnt_neg, cnt_pos]):
                 ax_p3mj.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1,
-                             f'{pct:.1f}%\n({int(cnt)} catatan)',
-                             ha='center', va='bottom', fontweight='bold')
-            plt.tight_layout(); st.pyplot(fig_p3mj); plt.close(fig_p3mj)
+                              f'{pct:.1f}%\n({int(cnt)} catatan)',
+                              ha='center', va='bottom', fontweight='bold')
+            plt.tight_layout()
+            st.pyplot(fig_p3mj)
+            plt.close(fig_p3mj)
 
             st.markdown(f"""
             **Keterangan:**
