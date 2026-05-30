@@ -81,7 +81,7 @@ elif main_menu == "🔋 Modul 1: Social Battery":
     
     @st.cache_data
     def load_sb_data():
-        df = pd.read_csv("../data/main_data_social_battery.csv")
+        df = pd.read_csv("main_data_social_battery.csv")
         month_order = ['January', 'February', 'March', 'April', 'May', 'June',
                        'July', 'August', 'September', 'October', 'November', 'December']
         day_order = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
@@ -288,7 +288,7 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
     
     @st.cache_data
     def load_mj_data():
-        return pd.read_csv("../data/main_data_mood_jar.csv")
+        return pd.read_csv("main_data_mood_jar.csv")
 
     try:
         mood_jar = load_mj_data()
