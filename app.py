@@ -6,14 +6,13 @@ import numpy as np
 import re
 from collections import Counter
 from wordcloud import WordCloud
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, pearsonr
 
 # =============================================================================
-# 1. KONFIGURASI DASHBOARD UTAMA
+# KONFIGURASI DASHBOARD UTAMA
 # =============================================================================
 st.set_page_config(page_title="Dashboard Terintegrasi: Social Battery & Mood Jar", layout="wide")
 
-# Custom CSS untuk tampilan profesional, bersih, dan sesuai standar dashboard analitik
 st.markdown("""
     <style>
     [data-testid="stSidebar"] { background-color: #fcfcfc; border-right: 1px solid #e6e6e6; }
@@ -24,12 +23,11 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =============================================================================
-# 2. MAIN CONTROL PANEL (SIDEBAR NAVIGATION)
+# SIDEBAR NAVIGASI MODUL
 # =============================================================================
 with st.sidebar:
     st.title("🚀 Main Control Panel")
     st.write("Silakan pilih modul analisis yang ingin dieksplorasi:")
-    
     main_menu = st.selectbox(
         "Pilih Modul Dashboard:",
         ["Halaman Utama (Beranda)", "🔋 Modul 1: Social Battery", "🫙 Modul 2: Mood Jar"]
@@ -37,54 +35,74 @@ with st.sidebar:
     st.divider()
 
 # =============================================================================
-# 3. KLASTER HALAMAN 1: BERANDA / HOME
+# HALAMAN BERANDA
 # =============================================================================
 if main_menu == "Halaman Utama (Beranda)":
     st.title("📊 Aplikasi Dashboard Analisis Terintegrasi")
-    st.markdown("### Proyek Capstone: Calm Social Battery & Calm Mood Jar")
+    st.markdown("### Proyek Capstone Calm: Social Battery & Mood Jar")
     st.divider()
-
     st.markdown("""
     <div class="academic-box">
         <h4>Selamat Datang di Platform Dashboard Analisis Data</h4>
-        <p>Dashboard ini berfungsi untuk menampilkan visualisasi data, hasil pengujian statistik, serta ringkasan keterangan evaluasi dari pertanyaan bisnis SMART utama pada Proyek Capstone <b>Calm Social Battery</b> dan <b>Calm Mood Jar</b>.</p>
-        <p>Silakan gunakan menu drop-down <b>Pilih Modul Dashboard</b> pada sidebar sebelah kiri untuk membuka masing-masing modul analisis penelitian.</p>
+        <p>Dashboard ini menampilkan visualisasi data, hasil pengujian statistik, serta ringkasan evaluasi dari pertanyaan bisnis SMART pada Proyek Capstone <b>Calm Social Battery</b> dan <b>Calm Mood Jar</b>.</p>
+        <p>Gunakan menu <b>Pilih Modul Dashboard</b> pada sidebar untuk membuka modul analisis.</p>
     </div>
     """, unsafe_allow_html=True)
     st.write("")
-
     col1, col2 = st.columns(2)
     with col1:
         st.info("""
         ### 🔋 1. Social Battery
-        * **[1] Pertanyaan 1:** Tren Kelelahan Pengguna Setiap Bulan.
-        * **[2] Pertanyaan 2:** Batas Aman Durasi Aktivitas Sosial.
-        * **[3] Pertanyaan 3:** Pola Kelelahan Berdasarkan Hari dalam Seminggu.
-        * **[4] Pertanyaan 4:** Hubungan Antara Intensitas Aktivitas dengan Skor Baterai.
-        * **[5] Pertanyaan 5:** Perbandingan Energi Pengguna Durasi Pendek vs Durasi Panjang.
+        * **[1]** Tren Kelelahan Pengguna Setiap Bulan
+        * **[2]** Batas Aman Durasi Aktivitas Sosial
+        * **[3]** Pola Kelelahan Berdasarkan Hari dalam Seminggu
+        * **[4]** Hubungan Intensitas Aktivitas dengan Skor Baterai
+        * **[5]** Perbandingan Energi Durasi Pendek vs Durasi Panjang
         """)
     with col2:
         st.success("""
         ### 🫙 2. Mood Jar
-        * **Eksplorasi Awal:** Distribusi Frekuensi Mood & Word Cloud Grid 2x2.
-        * **[1] Pertanyaan 1:** Eksplorasi Pemicu Utama antara Rasa Sedih dan Cemas.
-        * **[2] Pertanyaan 2:** Pengaruh Hubungan Sosial pada Mood Bahagia vs Sedih.
-        * **[3] Pertanyaan 3:** Kaitan antara Kondisi Fisik dengan Emosi (Marah & Cemas vs Bahagia).
+        * **Eksplorasi Awal:** Distribusi Frekuensi Mood & Word Cloud Grid 2x2
+        * **[1]** Eksplorasi Pemicu Utama Sedih dan Cemas
+        * **[2]** Pengaruh Hubungan Sosial pada Mood Bahagia vs Sedih
+        * **[3]** Kaitan Kondisi Fisik dengan Emosi
         """)
     st.divider()
-    st.caption("🏷️ Status Repositori: Terhubung ke GitHub & Streamlit Cloud | Jurusan Matematika, Universitas Airlangga")
+    st.caption("🏷️ Status: Terhubung ke GitHub & Streamlit Cloud | Jurusan Matematika, Universitas Airlangga")
 
 # =============================================================================
-# 4. KLASTER HALAMAN 2: SOCIAL BATTERY
+# MODUL 1: SOCIAL BATTERY
 # =============================================================================
 elif main_menu == "🔋 Modul 1: Social Battery":
-    
+
     @st.cache_data
     def load_sb_data():
         df = pd.read_csv("main_data_social_battery.csv")
-        month_order = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December']
-        day_order = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+        # Pastikan kolom datetime tersedia
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        # Feature engineering jika belum ada
+        if 'month_name' not in df.columns:
+            df['month_name'] = df['date'].dt.month_name()
+        if 'hari_ini' not in df.columns:
+            pemetaan = {'Monday':'Senin','Tuesday':'Selasa','Wednesday':'Rabu',
+                        'Thursday':'Kamis','Friday':'Jumat','Saturday':'Sabtu','Sunday':'Minggu'}
+            df['hari_ini'] = df['date'].dt.day_name().map(pemetaan)
+        if 'battery_category_3' not in df.columns:
+            df['battery_category_3'] = pd.cut(
+                df['battery_score'],
+                bins=[0, 49.99, 80, 100],
+                labels=['Low (<50)', 'Medium (50-80)', 'High (>80)']
+            )
+        if 'is_low_battery' not in df.columns:
+            df['is_low_battery'] = df['battery_score'] < 50
+        if 'is_high_battery' not in df.columns:
+            df['is_high_battery'] = df['battery_score'] > 80
+        if 'is_exhausted' not in df.columns:
+            df['is_exhausted'] = df['battery_score'] < 20
+        month_order = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December']
+        day_order = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu']
         focus_categories = ['Low (<50)', 'Medium (50-80)', 'High (>80)']
         return df, month_order, day_order, focus_categories
 
@@ -92,440 +110,637 @@ elif main_menu == "🔋 Modul 1: Social Battery":
         df, month_order, day_order, focus_categories = load_sb_data()
 
         with st.sidebar:
-            st.subheader("🔋 Navigasi Pertanyaan")
-            opsi_sb = st.sidebar.radio(
-                "Pilih Struktur Soal:",
-                [
-                    "Overview & Deskriptif EDA",
-                    "Pertanyaan 1: Tren Bulanan",
-                    "Pertanyaan 2: Batas Aman Durasi",
-                    "Pertanyaan 3: Pola Kelelahan Berdasarkan Hari",
-                    "Pertanyaan 4: Hubungan Intensitas Aktivitas",
-                    "Pertanyaan 5: Perbandingan Durasi Pendek vs Panjang"
-                ]
-            )
-            st.divider()
-            
-            st.subheader("⚡ SB Filters")
+            st.subheader("⚡ Filter Data")
             selected_months = st.multiselect("Pilih Bulan:", options=month_order, default=month_order)
             selected_categories = st.multiselect("Level Baterai:", options=focus_categories, default=focus_categories)
 
-        df_filtered = df[(df['month_name'].isin(selected_months)) & (df['battery_category_3'].isin(selected_categories))].copy()
+        df_filtered = df[
+            (df['month_name'].isin(selected_months)) &
+            (df['battery_category_3'].isin(selected_categories))
+        ].copy()
 
         st.title("🔋 Modul Analisis: Calm Social Battery")
-        st.markdown("### Analisis Tingkat Kelelahan Sosial dan Mencegah Risiko Academic Burnout")
+        st.markdown("### Analisis Tingkat Kelelahan Sosial dan Pencegahan Risiko Academic Burnout")
         st.divider()
 
-        # OVERVIEW
-        if opsi_sb == "Overview & Deskriptif EDA":
-            st.subheader("Overview & Deskriptif Exploratory Data Analysis (EDA)")
-            if df_filtered.empty:
-                st.warning("⚠️ Data tidak ditemukan. Silakan sesuaikan parameter pada filter.")
-            else:
-                col_m1, col_m2, col_m3 = st.columns(3)
-                col_m1.metric("Volume Observasi", f"{int(len(df_filtered))} Hari")
-                col_m2.metric("Mean Battery Score", f"{df_filtered['battery_score'].mean():.1f}")
-                col_m3.metric("Rata-rata Durasi", f"{df_filtered['total_duration_minutes'].mean():.1f} Menit")
-                
-                st.subheader("Statistik Deskriptif Dataset:")
-                st.dataframe(df_filtered[['total_duration_minutes', 'social_intensity_score', 'battery_score']].describe().round(2))
-                st.divider()
-                
-                st.markdown("""
-                **Keterangan:**
-                * **Variabel Target (`battery_score`):** Skor baterai bergerak dari nilai minimum **0.34** hingga nilai maksimum **99.99**, dengan nilai rata-rata (*mean*) sebesar **62.05**. Fakta bahwa nilai minimumnya adalah 0.34 (tidak ada nilai negatif) memperkuat keputusan untuk menetapkan batas kondisi kelelahan tinggi (*high fatigue*) pada angka di bawah 20 (`battery_score < 20`).
-                * **Variabel Aktivitas (`total_duration_minutes`):** Durasi aktivitas harian pengguna berkisar antara **0 menit** hingga **1.300 menit** (sekitar 21,6 jam). Rentang data durasi yang sangat luas ini sangat memadai untuk digunakan dalam mencari batas aman aktivitas sosial.
-                """)
+        # ── OVERVIEW & EDA ──────────────────────────────────────────────────
+        st.subheader("📋 Overview & Deskriptif Exploratory Data Analysis (EDA)")
+        if df_filtered.empty:
+            st.warning("⚠️ Data tidak ditemukan. Silakan sesuaikan filter.")
+        else:
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Volume Observasi", f"{len(df_filtered):,} Hari")
+            col_m2.metric("Mean Battery Score", f"{df_filtered['battery_score'].mean():.1f}")
+            col_m3.metric("Rata-rata Durasi", f"{df_filtered['total_duration_minutes'].mean():.1f} Menit")
 
-        # PERTANYAAN 1
-        elif opsi_sb == "Pertanyaan 1: Tren Bulanan":
-            st.subheader("[1] Pertanyaan 1: Tren Kelelahan Pengguna Setiap Bulan")
-            st.markdown('**Soal Baku:** *"Berapa persentase pengguna yang mengalami kelelahan sosial tingkat tinggi (battery_score < 20) di setiap bulan, dan bagaimana tren perkembangannya dari Januari hingga Desember 2026?"*')
-            st.markdown('**Indikator:** *Fokus pada pengguna dengan battery_score di bawah 20.*')
-            st.divider()
+            st.write("**Statistik Deskriptif Dataset:**")
+            st.dataframe(df_filtered[['total_duration_minutes','social_intensity_score','battery_score']].describe().round(2))
 
-            if df_filtered.empty:
-                st.warning("⚠️ Data tidak ditemukan.")
-            else:
-                df_filtered['is_exhausted_critical'] = df_filtered['battery_score'] < 20
-                data_m = df_filtered.groupby('month_name')['is_exhausted_critical'].mean() * 100
-                data_m = data_m.reindex([m for m in month_order if m in selected_months])
+            # Grafik Distribusi EDA (3 panel)
+            fig_eda, axes_eda = plt.subplots(1, 3, figsize=(15, 4))
+            axes_eda[0].hist(df_filtered['battery_score'], bins=30, edgecolor='black', color='skyblue')
+            axes_eda[0].axvline(x=50, color='orange', linestyle='--', label='Batas Low (<50)')
+            axes_eda[0].axvline(x=80, color='green', linestyle='--', label='Batas High (>80)')
+            axes_eda[0].set_xlabel('Battery Score'); axes_eda[0].set_ylabel('Frekuensi')
+            axes_eda[0].set_title('Distribusi Battery Score'); axes_eda[0].legend()
 
-                fig1, ax1 = plt.subplots(figsize=(12, 5))
-                sns.barplot(x=data_m.index, y=data_m.values, palette="magma", ax=ax1, edgecolor='black')
-                ax1.set_ylabel("Persentase Kelelahan (%)")
-                ax1.set_xlabel("Bulan")
-                ax1.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
-                plt.xticks(rotation=45)
-                st.pyplot(fig1)
+            box = axes_eda[1].boxplot(df_filtered['battery_score'], vert=True, patch_artist=True)
+            box['boxes'][0].set_facecolor('lightgreen')
+            axes_eda[1].set_ylabel('Battery Score'); axes_eda[1].set_title('Boxplot Battery Score')
+            axes_eda[1].axhline(y=50, color='orange', linestyle='--')
+            axes_eda[1].axhline(y=80, color='green', linestyle='--')
 
-                if not data_m.dropna().empty:
-                    max_month = data_m.idxmax()
-                    min_month = data_m.idxmin()
-                    st.markdown(f"""
-                    **Keterangan:** Grafik ini menunjukkan pola musiman kelelahan sosial. Bulan **{max_month}** diidentifikasi sebagai periode dengan tingkat kelelahan tertinggi, yang kemungkinan besar dipicu oleh akumulasi stresor akademik (seperti pekan ujian atau tugas besar). Sebaliknya, bulan **{min_month}** menunjukkan fase stabilisasi energi di mana beban sosial berada dalam batas toleransi pengguna. Penurunan kelelahan di bulan {min_month} menjadi bukti bahwa adanya waktu jeda dapat menjaga kestabilan energi mental secara signifikan.
-                    """)
-                    st.success(f"""
-                    ✅ **Solusi Strategis:** Untuk memitigasi lonjakan beban di bulan **{max_month}**, pengguna perlu menerapkan *pre-emptive rest* (istirahat terencana sebelum masa sibuk tiba). Mengadopsi manajemen kegiatan seperti pada bulan **{min_month}** dapat membantu mencegah akumulasi stres yang berujung pada **Academic Burnout**.
-                    """)
+            axes_eda[2].hist(df_filtered['total_duration_minutes'], bins=30, edgecolor='black', color='coral')
+            axes_eda[2].set_xlabel('Total Durasi (menit)'); axes_eda[2].set_ylabel('Frekuensi')
+            axes_eda[2].set_title('Distribusi Total Durasi Sosial')
+            plt.tight_layout()
+            st.pyplot(fig_eda)
+            plt.close(fig_eda)
 
-        # PERTANYAAN 2
-        elif opsi_sb == "Pertanyaan 2: Batas Aman Durasi":
-            st.subheader("[2] Pertanyaan 2: Batas Aman Durasi Aktivitas Sosial")
-            st.markdown('**Soal Baku:** *"Berapakah batas maksimal durasi waktu (dalam menit) yang masih aman bagi pengguna sebelum nilai battery_score mereka turun ke bawah 20?"*')
-            st.markdown('**Indikator:** *Mencari batas menit (total_duration_minutes) saat baterai mulai kritis (< 20).*')
-            st.divider()
+            st.markdown("""
+            **Keterangan:**
+            * **`battery_score`** bergerak dari minimum **0.34** hingga **99.99**, rata-rata **~62**. Kondisi kelelahan kritis ditetapkan pada `< 20`.
+            * **`total_duration_minutes`** berkisar **0 – 1.300 menit** (~21,6 jam), rentang luas ini memadai untuk mencari batas aman aktivitas sosial.
+            """)
+        st.divider()
 
-            if df_filtered.empty:
-                st.warning("⚠️ Data tidak ditemukan.")
-            else:
-                subset_lelah = df_filtered[df_filtered['battery_score'] < 20]
-                median_val = subset_lelah['total_duration_minutes'].median() if not subset_lelah.empty else df_filtered['total_duration_minutes'].median()
+        # ── PERTANYAAN 1 ────────────────────────────────────────────────────
+        st.subheader("📌 [1] Tren Kelelahan Pengguna Setiap Bulan")
+        st.markdown('**Soal:** *"Berapa persentase pengguna yang mengalami kelelahan sosial tingkat tinggi (battery_score < 20) di setiap bulan, dan bagaimana tren perkembangannya dari Januari hingga Desember 2026?"*')
+        st.markdown('**Indikator:** Fokus pada pengguna dengan battery_score di bawah 20.')
 
-                fig2, ax2 = plt.subplots(figsize=(12, 5))
-                category_order = [cat for cat in ['Low (<50)', 'Medium (50-80)', 'High (>80)'] if cat in selected_categories]
-                sns.boxplot(data=df_filtered, x='battery_category_3', y='total_duration_minutes', order=category_order, palette="coolwarm", ax=ax2)
-                ax2.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
-                st.pyplot(fig2)
+        if not df_filtered.empty:
+            df_p1 = df_filtered.copy()
+            df_p1['is_exhausted_critical'] = df_p1['battery_score'] < 20
+
+            monthly_stats = df_p1.groupby('month_name', observed=False).agg(
+                total_users=('user_id', 'nunique'),
+                exhausted_count=('is_exhausted_critical', 'sum')
+            )
+            monthly_stats['exhausted_pct'] = (monthly_stats['exhausted_count'] / monthly_stats['total_users'].replace(0, np.nan)) * 100
+            monthly_stats = monthly_stats.reindex([m for m in month_order if m in selected_months])
+            monthly_stats = monthly_stats.dropna(subset=['exhausted_pct'])
+
+            if not monthly_stats.empty:
+                avg_val = monthly_stats['exhausted_pct'].mean()
+                max_month = monthly_stats['exhausted_pct'].idxmax()
+                min_month = monthly_stats['exhausted_pct'].idxmin()
+
+                fig1, ax1 = plt.subplots(figsize=(14, 6))
+                colors_p1 = plt.cm.RdYlGn_r(monthly_stats['exhausted_pct'] / monthly_stats['exhausted_pct'].max())
+                bars1 = ax1.bar(monthly_stats.index, monthly_stats['exhausted_pct'],
+                                color=colors_p1, edgecolor='black', linewidth=1)
+                ax1.axhline(y=avg_val, color='blue', linestyle='--', label=f'Rata-rata ({avg_val:.2f}%)')
+                ax1.set_xlabel('Bulan', fontsize=12)
+                ax1.set_ylabel('Persentase Kelelahan Kritis (battery < 20) (%)', fontsize=12)
+                ax1.set_title('Tren Persentase Kelelahan Sosial Kritis Bulanan (2026)', fontsize=14, fontweight='bold')
+                ax1.legend(); ax1.set_ylim(0, monthly_stats['exhausted_pct'].max() + 10)
+                for bar, pct in zip(bars1, monthly_stats['exhausted_pct']):
+                    ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                             f'{pct:.2f}%', ha='center', va='bottom', fontsize=9)
+                plt.xticks(rotation=45); plt.tight_layout()
+                st.pyplot(fig1); plt.close(fig1)
 
                 st.markdown(f"""
-                **Keterangan:** Berdasarkan distribusi statistik di atas, terlihat korelasi yang jelas antara durasi aktivitas dengan penurunan level energi. Kondisi 'Sangat Lelah' secara konsisten muncul ketika durasi interaksi sosial mencapai median **{median_val:.0f} menit**. Ini membuktikan bahwa kapasitas baterai sosial memiliki ambang batas durasi tertentu, di mana setelah melewati batas tersebut, pemulihan energi akan menjadi jauh lebih lambat.
+                **Keterangan:** Bulan **{max_month}** memiliki tingkat kelelahan kritis tertinggi, kemungkinan dipicu oleh akumulasi stresor akademik. Bulan **{min_month}** menunjukkan fase stabilisasi energi terbaik.
                 """)
-                st.success(f"""
-                ✅ **Solusi Strategis:** Tetapkan durasi **{median_val:.0f} menit** sebagai batas aman interaksi sosial harian. Pengguna disarankan untuk mulai melakukan 'penarikan diri secara bertahap' dari lingkungan sosial sebelum mencapai batas durasi ini guna melindungi cadangan energi mental dari risiko **Academic Burnout**.
-                """)
-
-        # PERTANYAAN 3
-        elif opsi_sb == "Pertanyaan 3: Pola Kelelahan Berdasarkan Hari":
-            st.subheader("[3] Pertanyaan 3: Pola Kelelahan Berdasarkan Hari dalam Seminggu")
-            st.markdown('**Soal Baku:** *"Pada hari apa pengguna paling rentan mengalami kelelahan (battery_score < 20) dan pada hari apa kondisi energi mereka paling tinggi (battery_score > 80)?"*')
-            st.markdown('**Indikator:** *Membandingkan tingkat energi pengguna dari hari Senin sampai Minggu.*')
-            st.divider()
-
-            if df_filtered.empty:
-                st.warning("⚠️ Data tidak ditemukan.")
+                st.success(f"✅ **Solusi Strategis:** Terapkan *pre-emptive rest* sebelum bulan **{max_month}**. Adopsi pola manajemen kegiatan seperti bulan **{min_month}** untuk mencegah **Academic Burnout**.")
             else:
-                data_d = df_filtered.groupby('hari_ini')['battery_score'].mean().reindex(day_order)
+                st.warning("⚠️ Data tidak cukup untuk menampilkan grafik tren bulanan.")
+        st.divider()
 
-                fig3, ax3 = plt.subplots(figsize=(12, 5))
-                ax3.plot(data_d.index, data_d.values, marker='o', color='teal', linewidth=4, markersize=10)
-                ax3.fill_between(data_d.index, data_d.values, alpha=0.2, color='teal')
-                ax3.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
-                st.pyplot(fig3)
+        # ── PERTANYAAN 2 ────────────────────────────────────────────────────
+        st.subheader("📌 [2] Batas Aman Durasi Aktivitas Sosial")
+        st.markdown('**Soal:** *"Berapakah batas maksimal durasi waktu (dalam menit) yang masih aman bagi pengguna sebelum nilai battery_score mereka turun ke bawah 50?"*')
+        st.markdown('**Indikator:** Mencari batas menit saat baterai mulai masuk kondisi Low (< 50).')
 
-                if not data_d.dropna().empty:
-                    low_day = data_d.idxmin()
-                    st.markdown(f"""
-                    **Keterangan:** Grafik ini mengungkap fenomena penurunan energi di tengah minggu, dengan hari **{low_day}** sebagai titik terendah. Hal ini mencerminkan adanya akumulasi beban sosial dari awal minggu yang tidak terkompensasi oleh waktu pemulihan memadai. Tanpa adanya intervensi di hari kritis ini, kelelahan sosial akan terus terbawa hingga akhir pekan dan menurunkan produktivitas akademik secara keseluruhan.
-                    """)
-                    st.success(f"""
-                    ✅ **Solusi Strategis:** Mengingat hari **{low_day}** adalah hari produktif, solusinya bukan menghindari kegiatan, melainkan menerapkan strategi **'Micro-recovery'**. Luangkan waktu 15-30 menit di sela-sela jadwal kuliah untuk menyendiri tanpa distraksi sensorik. Selain itu, hindari pengambilan keputusan besar atau pertemuan sosial intensitas tinggi di hari {low_day} untuk menjaga stabilitas emosional dari ancaman **Academic Burnout**.
-                    """)
+        if not df_filtered.empty:
+            low_bat = df_filtered[df_filtered['battery_score'] < 50]
+            normal_bat = df_filtered[df_filtered['battery_score'] >= 50]
 
-        # PERTANYAAN 4
-        elif opsi_sb == "Pertanyaan 4: Hubungan Intensitas Aktivitas":
-            st.subheader("[4] Pertanyaan 4: Hubungan Antara Intensitas Aktivitas dengan Skor Baterai")
-            st.markdown('**Soal Baku:** *"Apakah terdapat korelasi (hubungan) yang signifikan antara tingkat kepadatan aktivitas (social_intensity_score) dengan sisa energi pengguna (battery_score)?"*')
-            st.markdown('**Indikator:** *Menguji hubungan antara intensitas kegiatan dan tingkat kelelahan.*')
-            st.divider()
+            if not low_bat.empty and not normal_bat.empty:
+                threshold_median = low_bat['total_duration_minutes'].median()
+                threshold_p75 = low_bat['total_duration_minutes'].quantile(0.75)
+                safe_threshold = normal_bat['total_duration_minutes'].quantile(0.25)
 
-            if df_filtered.empty:
-                st.warning("⚠️ Data tidak ditemukan.")
-            else:
-                fig4, ax4 = plt.subplots(figsize=(12, 5))
-                sns.regplot(data=df_filtered, x='social_intensity_score', y='battery_score', scatter_kws={'alpha':0.2}, line_kws={'color':'red'}, ax=ax4)
-                ax4.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
-                st.pyplot(fig4)
-                
-                st.markdown("""
-                **Keterangan:** Melalui model regresi linear ini, ditemukan bukti empiris bahwa intensitas lingkungan (keramaian, kebisingan, dan beban interaksi) memiliki pengaruh negatif yang signifikan terhadap sisa energi. Semakin tinggi beban sensorik di lingkungan sosial, semakin cepat laju *social exhaustion* terjadi. Hal ini membuktikan bahwa lingkungan yang terlalu menstimulasi otak secara berlebihan merupakan faktor pemicu utama kelelahan mental bagi mahasiswa.
+                col_p2a, col_p2b, col_p2c = st.columns(3)
+                col_p2a.metric("Median Durasi (Low Battery)", f"{threshold_median:.0f} mnt")
+                col_p2b.metric("Persentil 75 (Low Battery)", f"{threshold_p75:.0f} mnt")
+                col_p2c.metric("Q25 Durasi (User Sehat)", f"{safe_threshold:.0f} mnt")
+
+                fig2, axes2 = plt.subplots(1, 2, figsize=(14, 5))
+
+                axes2[0].hist(low_bat['total_duration_minutes'], bins=20, alpha=0.7,
+                              label='Low Battery (<50)', color='red', edgecolor='black')
+                axes2[0].hist(normal_bat['total_duration_minutes'], bins=20, alpha=0.7,
+                              label='Normal/Sehat (>=50)', color='green', edgecolor='black')
+                axes2[0].axvline(x=threshold_median, color='darkred', linestyle='--',
+                                 label=f'Median Low: {threshold_median:.0f} mnt')
+                axes2[0].axvline(x=safe_threshold, color='darkgreen', linestyle='--',
+                                 label=f'Q25 Sehat: {safe_threshold:.0f} mnt')
+                axes2[0].set_xlabel('Total Durasi (menit)'); axes2[0].set_ylabel('Frekuensi')
+                axes2[0].set_title('Distribusi Durasi: Low Battery vs Normal'); axes2[0].legend()
+
+                category_order = [c for c in ['Low (<50)', 'Medium (50-80)', 'High (>80)'] if c in selected_categories]
+                sns.boxplot(data=df_filtered, x='battery_category_3', y='total_duration_minutes',
+                            order=category_order, ax=axes2[1], palette='RdYlGn_r',
+                            hue='battery_category_3', legend=False)
+                axes2[1].set_xlabel('Kategori Battery Score'); axes2[1].set_ylabel('Total Durasi (menit)')
+                axes2[1].set_title('Durasi Sosial per Kategori Battery')
+                plt.tight_layout(); st.pyplot(fig2); plt.close(fig2)
+
+                st.markdown(f"""
+                **Keterangan:** Kondisi Low Battery secara konsisten muncul saat durasi interaksi sosial mencapai median **{threshold_median:.0f} menit**. Ini membuktikan bahwa baterai sosial memiliki ambang batas durasi tertentu.
                 """)
-                st.success("""
-                ✅ **Solusi Strategis:** Terapkan teknik **'Social Pacing'**. Jika Anda harus berada di lingkungan yang ramai (seperti kantin atau ruang rapat besar), pastikan durasinya diimbangi dengan sesi tenang sesudahnya. Penggunaan alat bantu seperti penutup telinga atau sekadar berpindah ke area yang lebih sepi selama beberapa menit terbukti efektif mengurangi beban sensorik dan mencegah gejala awal **Academic Burnout**.
+                st.success(f"✅ **Solusi Strategis:** Tetapkan **{int(threshold_median)-1} menit/hari** sebagai batas aman interaksi sosial harian untuk mencegah **Academic Burnout**.")
+        st.divider()
+
+        # ── PERTANYAAN 3 ────────────────────────────────────────────────────
+        st.subheader("📌 [3] Pola Kelelahan Berdasarkan Hari dalam Seminggu")
+        st.markdown('**Soal:** *"Pada hari apa pengguna paling rentan mengalami kelelahan dan pada hari apa kondisi energi mereka paling tinggi?"*')
+        st.markdown('**Indikator:** Membandingkan tingkat energi pengguna dari Senin sampai Minggu.')
+
+        if not df_filtered.empty:
+            statistik_harian = df_filtered.groupby('hari_ini', observed=False).agg(
+                rata_rata_baterai=('battery_score', 'mean'),
+                median_baterai=('battery_score', 'median'),
+                persen_low=('is_low_battery', 'mean'),
+                persen_high=('is_high_battery', 'mean'),
+                rata_rata_intensitas=('social_intensity_score', 'mean')
+            ).round(4)
+            statistik_harian['persen_low'] = statistik_harian['persen_low'] * 100
+            statistik_harian['persen_high'] = statistik_harian['persen_high'] * 100
+            valid_days = [d for d in day_order if d in statistik_harian.index]
+            statistik_harian = statistik_harian.reindex(valid_days).dropna(subset=['rata_rata_baterai'])
+
+            if not statistik_harian.empty:
+                hari_terbaik = statistik_harian['rata_rata_baterai'].idxmax()
+                hari_terburuk = statistik_harian['rata_rata_baterai'].idxmin()
+
+                fig3, axes3 = plt.subplots(2, 2, figsize=(14, 10))
+
+                # Plot 1: Bar rata-rata baterai per hari
+                warna = ['red' if h == hari_terburuk else 'green' if h == hari_terbaik else 'steelblue'
+                         for h in statistik_harian.index]
+                axes3[0,0].bar(statistik_harian.index, statistik_harian['rata_rata_baterai'],
+                               color=warna, edgecolor='black')
+                axes3[0,0].axhline(y=statistik_harian['rata_rata_baterai'].mean(), color='orange',
+                                   linestyle='--', label=f"Rata-rata: {statistik_harian['rata_rata_baterai'].mean():.2f}")
+                axes3[0,0].set_ylabel('Rata-rata Skor Baterai')
+                axes3[0,0].set_title('Rata-rata Skor Baterai per Hari'); axes3[0,0].legend()
+
+                # Plot 2: Persentase Low Battery per hari
+                axes3[0,1].bar(statistik_harian.index, statistik_harian['persen_low'],
+                               color='coral', edgecolor='black')
+                axes3[0,1].set_ylabel('Persentase Low Battery (%)')
+                axes3[0,1].set_title('Persentase Low Battery (< 50) per Hari')
+
+                # Plot 3: Boxplot distribusi baterai per hari
+                sns.boxplot(data=df_filtered, x='hari_ini', y='battery_score',
+                            order=valid_days, ax=axes3[1,0], palette='Set2',
+                            hue='hari_ini', legend=False)
+                axes3[1,0].axhline(y=50, color='orange', linestyle='--', alpha=0.7, label='Batas Low (<50)')
+                axes3[1,0].axhline(y=80, color='green', linestyle='--', alpha=0.7, label='Batas High (>80)')
+                axes3[1,0].set_xlabel('Hari'); axes3[1,0].set_ylabel('Skor Baterai')
+                axes3[1,0].set_title('Distribusi Skor Baterai per Hari'); axes3[1,0].legend()
+
+                # Plot 4: Grafik garis tren mingguan
+                x_pos = range(len(statistik_harian))
+                axes3[1,1].plot(list(statistik_harian.index), statistik_harian['rata_rata_baterai'],
+                                'o-', linewidth=2, markersize=8, color='steelblue')
+                axes3[1,1].fill_between(list(statistik_harian.index),
+                                        statistik_harian['rata_rata_baterai'], alpha=0.3, color='steelblue')
+                for hari, nilai in statistik_harian['rata_rata_baterai'].items():
+                    axes3[1,1].annotate(f'{nilai:.2f}', (hari, nilai),
+                                        textcoords="offset points", xytext=(0, 10), ha='center')
+                axes3[1,1].set_ylabel('Rata-rata Skor Baterai')
+                axes3[1,1].set_title('Tren Naik-Turun Energi dalam Seminggu')
+
+                plt.tight_layout(); st.pyplot(fig3); plt.close(fig3)
+
+                st.markdown(f"""
+                **Keterangan:** Hari **{hari_terburuk}** teridentifikasi sebagai hari dengan energi terendah akibat akumulasi beban sosial. Hari **{hari_terbaik}** adalah hari dengan kondisi energi paling prima.
                 """)
+                st.success(f"✅ **Solusi Strategis:** Terapkan **'Micro-recovery'** di hari **{hari_terburuk}** — luangkan 15–30 menit menyendiri tanpa distraksi sensorik untuk mencegah **Academic Burnout**.")
+        st.divider()
 
-        # PERTANYAAN 5
-        elif opsi_sb == "Pertanyaan 5: Perbandingan Durasi Pendek vs Panjang":
-            st.subheader("[5] Pertanyaan 5: Perbandingan Energi Pengguna Durasi Pendek vs Durasi Panjang")
-            st.markdown('**Soal Baku:** *"Apakah terdapat perbedaan battery_score yang nyata antara kelompok pengguna dengan durasi aktivitas yang pendek (sebentar) vs durasi aktivitas yang panjang (lama)?"*')
-            st.markdown('**Indikator:** *Membandingkan skor baterai antara kelompok durasi rendah (< 900 mnt) dan durasi tinggi (> 1000 mnt).*')
-            st.divider()
+        # ── PERTANYAAN 4 ────────────────────────────────────────────────────
+        st.subheader("📌 [4] Hubungan Intensitas Aktivitas dengan Skor Baterai")
+        st.markdown('**Soal:** *"Apakah terdapat korelasi yang signifikan antara tingkat kepadatan aktivitas (social_intensity_score) dengan sisa energi pengguna (battery_score)?"*')
+        st.markdown('**Indikator:** Menguji hubungan antara intensitas kegiatan dan tingkat kelelahan.')
 
+        if not df_filtered.empty:
+            df_p4 = df_filtered[['social_intensity_score','battery_score']].dropna()
+            if len(df_p4) >= 2:
+                r_val, p_val_r = pearsonr(df_p4['social_intensity_score'], df_p4['battery_score'])
+
+                col_p4a, col_p4b = st.columns(2)
+                col_p4a.metric("Korelasi Pearson (r)", f"{r_val:.4f}")
+                col_p4b.metric("p-value", f"{p_val_r:.4e}")
+
+                fig4, axes4 = plt.subplots(1, 2, figsize=(14, 5))
+
+                # Plot 1: Scatter + Regression Line
+                sns.regplot(data=df_p4, x='social_intensity_score', y='battery_score',
+                            scatter_kws={'alpha': 0.2, 'color': 'steelblue'},
+                            line_kws={'color': 'red', 'linewidth': 2}, ax=axes4[0])
+                axes4[0].set_xlabel('Social Intensity Score'); axes4[0].set_ylabel('Battery Score')
+                axes4[0].set_title(f'Korelasi Intensitas vs Baterai (r = {r_val:.3f})', fontweight='bold')
+                axes4[0].text(0.05, 0.95, f'r = {r_val:.4f}\np = {p_val_r:.4e}',
+                              transform=axes4[0].transAxes, verticalalignment='top',
+                              bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+                # Plot 2: Boxplot Battery per Kategori Intensitas
+                df_p4_copy = df_filtered.copy()
+                df_p4_copy['intensity_cat'] = pd.cut(df_p4_copy['social_intensity_score'],
+                                                     bins=[0, 25, 50, 75, 100],
+                                                     labels=['Sangat Rendah', 'Rendah', 'Sedang', 'Tinggi'])
+                sns.boxplot(data=df_p4_copy, x='intensity_cat', y='battery_score',
+                            palette='RdYlGn_r', ax=axes4[1], hue='intensity_cat', legend=False)
+                axes4[1].set_xlabel('Kategori Intensitas Sosial'); axes4[1].set_ylabel('Battery Score')
+                axes4[1].set_title('Distribusi Baterai per Level Intensitas')
+
+                plt.tight_layout(); st.pyplot(fig4); plt.close(fig4)
+
+                st.markdown(f"""
+                **Keterangan:** Ditemukan bukti empiris bahwa intensitas lingkungan sosial memiliki pengaruh **negatif** terhadap sisa energi (r = {r_val:.4f}). Semakin tinggi beban sensorik, semakin cepat *social exhaustion* terjadi.
+                """)
+                st.success("✅ **Solusi Strategis:** Terapkan **'Social Pacing'** — jika harus di lingkungan ramai, imbangi dengan sesi tenang sesudahnya untuk mencegah **Academic Burnout**.")
+        st.divider()
+
+        # ── PERTANYAAN 5 ────────────────────────────────────────────────────
+        st.subheader("📌 [5] Perbandingan Energi: Durasi Pendek vs Durasi Panjang")
+        st.markdown('**Soal:** *"Apakah terdapat perbedaan battery_score yang nyata antara kelompok durasi pendek (< 900 mnt) vs durasi panjang (> 1000 mnt)?"*')
+        st.markdown('**Indikator:** Membandingkan skor baterai antara kelompok durasi rendah dan durasi tinggi.')
+
+        if not df_filtered.empty:
             kelompok_A = df_filtered[df_filtered['total_duration_minutes'] < 900]
             kelompok_B = df_filtered[df_filtered['total_duration_minutes'] > 1000]
 
-            if len(kelompok_A) < 2 or len(kelompok_B) < 2:
-                st.warning("⚠️ Jumlah sampel records data kurang memadai untuk menghitung uji t-test.")
-            else:
-                t_stat, p_val = ttest_ind(kelompok_A['battery_score'], kelompok_B['battery_score'], equal_var=False)
-                
-                col_c1, col_c2 = st.columns(2)
-                col_c1.metric("Rata-rata Durasi Pendek (<900m)", f"{kelompok_A['battery_score'].mean():.2f}")
-                col_c2.metric("Rata-rata Durasi Panjang (>1000m)", f"{kelompok_B['battery_score'].mean():.2f}")
-                
-                st.write(f"- **T-Statistic:** {t_stat:.4f} | **p-value:** {p_val:.4e}")
-                
-                fig5, ax5 = plt.subplots(figsize=(12, 5))
-                df_filtered['group'] = np.where(df_filtered['total_duration_minutes'] < 900, 'Terkontrol (<15 jam)', 'Berisiko (>16 jam)')
-                sns.barplot(data=df_filtered, x='group', y='battery_score', palette="plasma", ax=ax5, edgecolor='black')
-                ax5.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
-                st.pyplot(fig5)
-                
-                st.markdown("""
-                **Keterangan:** Perbandingan rata-rata skor energi antara dua kelompok ini menunjukkan efektivitas manajemen waktu yang sangat kontras. Kelompok 'Terkontrol' memiliki resiliensi energi yang jauh lebih stabil dibandingkan kelompok 'Berisiko'. Hal ini memvalidasi secara ilmiah bahwa pembatasan waktu aktif adalah intervensi yang paling aplikatif dan efektif untuk menghindari kondisi kelelahan klinis.
-                """)
-                st.success("""
-                ✅ **Solusi Strategis:** Disiplin dalam menjaga durasi kegiatan tetap pada zona 'Terkontrol' adalah strategi jangka panjang terbaik. Dengan menjaga konsistensi durasi aktif harian di bawah ambang batas kritis, pengguna dapat memastikan kapasitas kognitif tetap prima untuk menghadapi tantangan akademik harian tanpa risiko **Academic Burnout**.
-                """)
+            if len(kelompok_A) >= 2 and len(kelompok_B) >= 2:
+                t_stat, p_val_t = ttest_ind(kelompok_A['battery_score'], kelompok_B['battery_score'])
+                std_gabungan = np.sqrt((kelompok_A['battery_score'].std()**2 + kelompok_B['battery_score'].std()**2) / 2)
+                cohens_d = (kelompok_A['battery_score'].mean() - kelompok_B['battery_score'].mean()) / std_gabungan
 
+                col_p5a, col_p5b, col_p5c, col_p5d = st.columns(4)
+                col_p5a.metric("Rata-rata Kel. A (<900 mnt)", f"{kelompok_A['battery_score'].mean():.2f}")
+                col_p5b.metric("Rata-rata Kel. B (>1000 mnt)", f"{kelompok_B['battery_score'].mean():.2f}")
+                col_p5c.metric("T-Statistic", f"{t_stat:.4f}")
+                col_p5d.metric("p-value", f"{p_val_t:.4e}")
+
+                persen_low_A = (kelompok_A['is_low_battery'].sum() / len(kelompok_A)) * 100
+                persen_low_B = (kelompok_B['is_low_battery'].sum() / len(kelompok_B)) * 100
+
+                fig5, axes5 = plt.subplots(2, 2, figsize=(14, 10))
+
+                # Plot 1: Boxplot perbandingan
+                data_bp = [kelompok_A['battery_score'], kelompok_B['battery_score']]
+                bp = axes5[0,0].boxplot(data_bp, patch_artist=True,
+                                        tick_labels=['Kelompok A\n(<900 mnt)', 'Kelompok B\n(>1000 mnt)'])
+                bp['boxes'][0].set_facecolor('lightgreen')
+                bp['boxes'][1].set_facecolor('lightcoral')
+                axes5[0,0].axhline(y=50, color='orange', linestyle='--', label='Batas Low (<50)')
+                axes5[0,0].set_ylabel('Skor Baterai'); axes5[0,0].legend()
+                axes5[0,0].set_title('Perbandingan Distribusi Skor Baterai'); axes5[0,0].grid(True, alpha=0.3)
+
+                # Plot 2: Histogram overlay
+                axes5[0,1].hist(kelompok_A['battery_score'], bins=25, alpha=0.6,
+                                label='Kel. A (<900 mnt)', color='green', edgecolor='black')
+                axes5[0,1].hist(kelompok_B['battery_score'], bins=25, alpha=0.6,
+                                label='Kel. B (>1000 mnt)', color='red', edgecolor='black')
+                axes5[0,1].axvline(x=kelompok_A['battery_score'].mean(), color='darkgreen',
+                                   linestyle='--', label=f"Rata-rata A: {kelompok_A['battery_score'].mean():.2f}")
+                axes5[0,1].axvline(x=kelompok_B['battery_score'].mean(), color='darkred',
+                                   linestyle='--', label=f"Rata-rata B: {kelompok_B['battery_score'].mean():.2f}")
+                axes5[0,1].set_xlabel('Skor Baterai'); axes5[0,1].set_ylabel('Frekuensi')
+                axes5[0,1].set_title('Distribusi Skor Baterai (Overlay)'); axes5[0,1].legend()
+
+                # Plot 3: Bar rata-rata
+                nilai_rata = [kelompok_A['battery_score'].mean(), kelompok_B['battery_score'].mean()]
+                bars5 = axes5[1,0].bar(['Kelompok A\n(Durasi Aman)', 'Kelompok B\n(Durasi Berisiko)'],
+                                       nilai_rata, color=['green', 'red'], edgecolor='black', width=0.5)
+                axes5[1,0].set_ylabel('Rata-rata Skor Baterai')
+                axes5[1,0].set_title('Perbandingan Nilai Rata-rata Skor Baterai'); axes5[1,0].set_ylim(0, 100)
+                for bar, val in zip(bars5, nilai_rata):
+                    axes5[1,0].text(bar.get_x() + bar.get_width()/2, val + 2,
+                                    f'{val:.2f}', ha='center', fontsize=12, fontweight='bold')
+
+                # Plot 4: Stacked bar proporsi
+                normal_pct = [100 - persen_low_A, 100 - persen_low_B]
+                axes5[1,1].bar(['Kelompok A', 'Kelompok B'], normal_pct,
+                               label='Normal/Sehat (>=50)', color='#4ecdc4', edgecolor='black', width=0.5)
+                axes5[1,1].bar(['Kelompok A', 'Kelompok B'], [persen_low_A, persen_low_B],
+                               bottom=normal_pct, label='Low Battery (<50)',
+                               color='#ff6b6b', edgecolor='black', width=0.5)
+                axes5[1,1].set_ylabel('Persentase (%)'); axes5[1,1].set_ylim(0, 115)
+                axes5[1,1].set_title('Komposisi Low Battery per Kelompok'); axes5[1,1].legend(loc='upper right')
+                for i, (lp, np_) in enumerate(zip([persen_low_A, persen_low_B], normal_pct)):
+                    axes5[1,1].text(i, np_ / 2, f'{np_:.1f}%', ha='center', va='center',
+                                    fontsize=10, color='black', fontweight='bold')
+                    axes5[1,1].text(i, np_ + lp / 2, f'{lp:.1f}%', ha='center', va='center',
+                                    fontsize=10, color='white', fontweight='bold')
+
+                plt.tight_layout(); st.pyplot(fig5); plt.close(fig5)
+
+                if p_val_t < 0.05:
+                    status = "**SIGNIFIKAN** (p < 0.05)"
+                else:
+                    status = "**TIDAK SIGNIFIKAN** (p ≥ 0.05)"
+
+                if abs(cohens_d) < 0.2: efek = "Sangat Kecil"
+                elif abs(cohens_d) < 0.5: efek = "Kecil"
+                elif abs(cohens_d) < 0.8: efek = "Sedang"
+                else: efek = "Besar"
+
+                st.markdown(f"""
+                **Keterangan:** Perbedaan kedua kelompok bersifat {status} dengan Effect Size Cohen's d = **{abs(cohens_d):.3f}** ({efek}). Kelompok durasi aman memiliki resiliensi energi jauh lebih stabil.
+                """)
+                st.success("✅ **Solusi Strategis:** Disiplin menjaga durasi harian di zona 'Terkontrol' adalah strategi jangka panjang terbaik untuk mencegah **Academic Burnout**.")
+            else:
+                st.warning("⚠️ Jumlah sampel kurang memadai untuk uji t-test. Sesuaikan filter.")
+
+    except FileNotFoundError:
+        st.error("⚠️ File `main_data_social_battery.csv` tidak ditemukan. Pastikan file tersedia di direktori yang sama dengan `app.py`.")
     except Exception as e:
-        st.error(f"⚠️ Terjadi kesalahan memproses data Social Battery: {e}")
+        st.error(f"⚠️ Terjadi kesalahan: {e}")
 
 # =============================================================================
-# 5. KLASTER HALAMAN 3: MOOD JAR
+# MODUL 2: MOOD JAR
 # =============================================================================
 elif main_menu == "🫙 Modul 2: Mood Jar":
-    
+
     @st.cache_data
     def load_mj_data():
-        return pd.read_csv("main_data_mood_jar.csv")
+        mood_jar = pd.read_csv("main_data_mood_jar.csv")
+        # Normalisasi nama kolom (case-insensitive)
+        mood_jar.columns = [c.strip() for c in mood_jar.columns]
+        col_map = {c.upper(): c for c in mood_jar.columns}
+        if 'MOOD' not in mood_jar.columns and 'MOOD' in col_map:
+            mood_jar = mood_jar.rename(columns={col_map['MOOD']: 'MOOD'})
+        if 'MOOD_NOTE' not in mood_jar.columns and 'MOOD_NOTE' in col_map:
+            mood_jar = mood_jar.rename(columns={col_map['MOOD_NOTE']: 'MOOD_NOTE'})
+        mood_jar['MOOD'] = mood_jar['MOOD'].astype(str).str.strip().str.lower()
+        mood_jar['MOOD_NOTE'] = mood_jar['MOOD_NOTE'].astype(str).str.strip()
+        return mood_jar
 
     try:
         mood_jar = load_mj_data()
-
-        with st.sidebar:
-            st.subheader("🫙 Navigasi Pertanyaan")
-            opsi_menu = st.sidebar.radio(
-                "Pilih Struktur Soal:",
-                [
-                    "Eksplorasi Awal & Word Cloud", 
-                    "Pertanyaan 1: Topik Pemicu", 
-                    "Pertanyaan 2: Hubungan Sosial", 
-                    "Pertanyaan 3: Kondisi Fisik vs Emosi"
-                ]
-            )
 
         st.title("🫙 Modul Analisis: Calm Mood Jar")
         st.markdown("### Eksplorasi Kata Kunci Pemicu Emosi Harian Mahasiswa")
         st.divider()
 
-        # GATHERING DATA & WORD CLOUD
-        if opsi_menu == "Eksplorasi Awal & Word Cloud":
-            st.subheader("Tahap Gathering Data & Awal Eksplorasi (Word Cloud)")
-            st.divider()
-            
-            mood_counts = mood_jar['MOOD'].value_counts()
-            
-            col_text1, col_text2 = st.columns(2)
-            with col_text1:
-                st.write("**Frekuensi Kumulatif Kategori Mood:**")
-                st.dataframe(mood_counts)
-            with col_text2:
-                st.write("**Proporsi Persentase Kategori Mood:**")
-                for m, v in mood_counts.items():
-                    st.write(f"- Kategori **{m.capitalize()}** : {(v/len(mood_jar)*100).round(2)}%")
+        # ── EKSPLORASI AWAL & WORD CLOUD ─────────────────────────────────
+        st.subheader("📋 Eksplorasi Awal & Word Cloud Grid 2×2")
 
-            colors = {'sedih': '#5D9B9B', 'bahagia': '#F4A261', 'cemas': '#E9C46A', 'marah': '#E76F51'}
-            bar_colors = [colors.get(m, '#999999') for m in mood_counts.index]
-            
-            fig_dist, axes_dist = plt.subplots(1, 2, figsize=(14, 5))
-            axes_dist[0].bar(mood_counts.index, mood_counts.values, color=bar_colors, edgecolor='black')
-            axes_dist[0].set_title('Distribusi Frekuensi Mood (Unik)', fontsize=14, fontweight='bold')
-            axes_dist[0].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: "{:,}".format(int(x))))
-            for i, v in enumerate(mood_counts.values):
-                axes_dist[0].text(i, v + 25, str(int(v)), ha='center', fontweight='bold')
+        mood_counts = mood_jar['MOOD'].value_counts()
 
-            axes_dist[1].pie(mood_counts.values, labels=[k.capitalize() for k in mood_counts.index], autopct='%1.1f%%', colors=bar_colors, startangle=90, explode=[0.05]*len(mood_counts))
-            axes_dist[1].set_title('Proporsi Kondisi Mental Mahasiswa', fontsize=14, fontweight='bold')
-            st.pyplot(fig_dist)
-            st.divider()
+        col_mj1, col_mj2 = st.columns(2)
+        with col_mj1:
+            st.write("**Frekuensi Kumulatif Kategori Mood:**")
+            st.dataframe(mood_counts.rename("Jumlah"))
+        with col_mj2:
+            st.write("**Proporsi Persentase Kategori Mood:**")
+            for mood_name, val in mood_counts.items():
+                pct = val / len(mood_jar) * 100
+                st.write(f"- Kategori **{mood_name.capitalize()}** : {pct:.2f}%")
 
-            st.subheader("Visualisasi Kata Kunci Dominan Menggunakan Word Cloud Grid 2x2")
-            color_maps = {'sedih': 'YlGnBu', 'bahagia': 'Oranges', 'cemas': 'YlOrBr', 'marah': 'Reds'}
-            
-            extended_stopwords = set([
-                'aku', 'saya', 'merasa', 'perasaan', 'dan', 'yang', 'di', 'ke', 'dari', 'ini', 'itu', 'untuk', 'with', 'dengan', 
-                'karena', 'tidak', 'tak', 'bisa', 'akan', 'ada', 'adalah', 'sangat', 'lebih', 'bahwa', 'saat', 'jadi', 
-                'agak', 'kalau', 'jika', 'saja', 'juga', 'lah', 'kah', 'nya', 'tapi', 'tetapi', 'bgt', 'banget', 'kok', 
-                'loh', 'sih', 'ya', 'pas', 'malah', 'begitu', 'secara', 'tentang', 'oleh', 'bagi', 'pada', 'atau', 
-                'lalu', 'kemudian', 'setelah', 'sebelum', 'ketika', 'sementara', 'bahkan', 'namun', 'melainkan', 
-                'sedangkan', 'seperti', 'sebagai', 'terhadap', 'kepada', 'maupun', 'ia', 'kami', 'kita', 'kamu', 
-                'mereka', 'dia', 'anda', 'hal', 'orang', 'buat', 'banyak', 'bukan', 'pun', 'hanya', 'bisa', 'mampu', 
-                'dapat', 'ingin', 'mau', 'bila', 'terus', 'lagi', 'tahu', 'melihat', 'bilang', 'kata', 'katanya', 
-                'dalam', 'apa', 'sudah', 'telah', 'semua', 'masih', 'merasakan', 'menjadi', 'membuat', 'sama', 
-                'lain', 'sedang', 'hari', 'sedikit', 'diri', 'mulai', 'tahu-tahu', 'tahu2', 
-                'yg', 'mungkin', 'benar', 'benar-benar', 'sebuah', 'suatu', 'sesuatu', 'satu', 'dua', 'tiga', 
-                'kali', 'waktu', 'pernah', 'kembali', 'paling', 'terlalu', 'cukup', 'jangan', 'hampir', 
-                'sekarang', 'serta', 'tersebut', 'bagaikan', 'selalu', 'biasanya', 'punya', 'mengapa', 'kenapa',
-                'beberapa', 'sekali', 'setiap', 'tanpa', 'baru'
-            ])
+        colors_mood = {'sedih': '#5D9B9B', 'bahagia': '#F4A261', 'cemas': '#E9C46A', 'marah': '#E76F51'}
+        bar_colors_mj = [colors_mood.get(m, '#999999') for m in mood_counts.index]
 
-            fig_wc, axes_wc = plt.subplots(2, 2, figsize=(14, 10))
-            axes_wc = axes_wc.flatten()
-            moods_list = mood_jar['MOOD'].unique()
+        fig_dist, axes_dist = plt.subplots(1, 2, figsize=(14, 5))
+        axes_dist[0].bar(mood_counts.index, mood_counts.values, color=bar_colors_mj, edgecolor='black')
+        axes_dist[0].set_title('Distribusi Frekuensi Mood', fontsize=14, fontweight='bold')
+        axes_dist[0].set_xlabel('Kategori Mood'); axes_dist[0].set_ylabel('Jumlah Catatan')
+        axes_dist[0].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
+        for i, v in enumerate(mood_counts.values):
+            axes_dist[0].text(i, v + 25, str(int(v)), ha='center', fontweight='bold')
 
-            for i, mood in enumerate(moods_list):
-                text_content = " ".join(mood_jar[mood_jar['MOOD'] == mood]['MOOD_NOTE'].astype(str))
-                wordcloud = WordCloud(
-                    width=800, height=600, background_color='white',
-                    stopwords=extended_stopwords, min_font_size=10,
-                    colormap=color_maps.get(mood, 'viridis'), collocations=False
-                ).generate(text_content)
-                
-                axes_wc[i].imshow(wordcloud, interpolation='bilinear')
-                axes_wc[i].set_title(f"Word Cloud - Mood: {mood.upper()}", fontsize=14, fontweight='bold')
+        axes_dist[1].pie(mood_counts.values,
+                         labels=[k.capitalize() for k in mood_counts.index],
+                         autopct='%1.1f%%', colors=bar_colors_mj,
+                         startangle=90, explode=[0.05]*len(mood_counts))
+        axes_dist[1].set_title('Proporsi Kondisi Mental Mahasiswa', fontsize=14, fontweight='bold')
+        plt.tight_layout(); st.pyplot(fig_dist); plt.close(fig_dist)
+
+        # Word Cloud 2x2
+        st.write("**Visualisasi Word Cloud Dominan (Grid 2×2):**")
+        extended_stopwords = {
+            'aku','saya','merasa','perasaan','dan','yang','di','ke','dari','ini','itu','untuk','dengan',
+            'karena','tidak','tak','bisa','akan','ada','adalah','sangat','lebih','bahwa','saat','jadi',
+            'agak','kalau','jika','saja','juga','lah','kah','nya','tapi','tetapi','bgt','banget','kok',
+            'loh','sih','ya','pas','malah','begitu','secara','tentang','oleh','bagi','pada','atau',
+            'lalu','kemudian','setelah','sebelum','ketika','sementara','bahkan','namun','melainkan',
+            'sedangkan','seperti','sebagai','terhadap','kepada','maupun','ia','kami','kita','kamu',
+            'mereka','dia','anda','hal','orang','buat','banyak','bukan','pun','hanya','mampu',
+            'dapat','ingin','mau','bila','terus','lagi','tahu','melihat','bilang','kata','katanya',
+            'dalam','apa','sudah','telah','semua','masih','merasakan','menjadi','membuat','sama',
+            'lain','sedang','hari','sedikit','diri','mulai','yg','mungkin','benar','benar-benar',
+            'sebuah','suatu','sesuatu','satu','dua','tiga','kali','waktu','pernah','kembali',
+            'paling','terlalu','cukup','jangan','hampir','sekarang','serta','tersebut','bagaikan',
+            'selalu','biasanya','punya','mengapa','kenapa','beberapa','sekali','setiap','tanpa','baru'
+        }
+        color_maps_wc = {'sedih': 'YlGnBu', 'bahagia': 'Oranges', 'cemas': 'YlOrBr', 'marah': 'Reds'}
+        moods_unik = [m for m in ['sedih', 'bahagia', 'cemas', 'marah'] if m in mood_jar['MOOD'].unique()]
+
+        if len(moods_unik) >= 1:
+            n_rows = (len(moods_unik) + 1) // 2
+            fig_wc, axes_wc = plt.subplots(n_rows, 2, figsize=(14, 5 * n_rows))
+            axes_wc = np.array(axes_wc).flatten()
+            for i, mood_name in enumerate(moods_unik):
+                text_content = " ".join(mood_jar[mood_jar['MOOD'] == mood_name]['MOOD_NOTE'].astype(str))
+                if text_content.strip():
+                    wc = WordCloud(width=800, height=600, background_color='white',
+                                   stopwords=extended_stopwords, min_font_size=10,
+                                   colormap=color_maps_wc.get(mood_name, 'viridis'),
+                                   collocations=False).generate(text_content)
+                    axes_wc[i].imshow(wc, interpolation='bilinear')
+                else:
+                    axes_wc[i].text(0.5, 0.5, 'Data kosong', ha='center', va='center')
+                axes_wc[i].set_title(f"Word Cloud — Mood: {mood_name.upper()}", fontsize=14, fontweight='bold')
                 axes_wc[i].axis('off')
+            # Sembunyikan subplot kosong jika jumlah mood ganjil
+            for j in range(len(moods_unik), len(axes_wc)):
+                axes_wc[j].axis('off')
+            plt.tight_layout(); st.pyplot(fig_wc); plt.close(fig_wc)
 
-            plt.tight_layout()
-            st.pyplot(fig_wc)
-            st.divider()
+        st.markdown("""
+        **Keterangan:**
+        * Dataset berhasil dimuat dengan total **11.887** entri, seimbang (~2.972 per kategori mood), sangat valid untuk analisis komparatif.
+        * Word Cloud menunjukkan kontras jelas: emosi negatif (`sedih`, `cemas`, `marah`) didominasi keluhan akademik dan kelelahan fisik; emosi positif (`bahagia`) didominasi kata kepuasan dan hubungan sosial.
+        """)
+        st.divider()
 
-            st.markdown("""
+        # ── PERTANYAAN 1 ────────────────────────────────────────────────────
+        st.subheader("📌 [1] Eksplorasi Pemicu Utama antara Rasa Sedih dan Cemas")
+        st.markdown('**Soal:** *"Apa tiga kata kunci yang paling sering muncul dalam cerita pengguna saat merasa \'sedih\' dan \'cemas\', serta bagaimana perbandingannya?"*')
+        st.markdown('**Indikator:** Menemukan kata kunci penanda utama pada cerita pengguna di kelompok mood sedih dan cemas.')
+
+        df_sedih = mood_jar[mood_jar['MOOD'] == 'sedih']
+        df_cemas = mood_jar[mood_jar['MOOD'] == 'cemas']
+
+        stopwords_p1 = {
+            'aku','saya','kau','kamu','dia','mereka','kita','kami','ini','itu','tersebut',
+            'dan','atau','tapi','namun','karena','sebab','jika','kalau','maka','sangat',
+            'begitu','seperti','sebagai','dengan','tanpa','untuk','dari','kepada','pada',
+            'oleh','dalam','bahwa','bisa','akan','telah','sudah','belum','masih','sedang',
+            'yg','dgn','tdk','utk','jd','jg','sdh','pun','nya','merasa','yang','tidak',
+            'perasaan','orang','saat','hal','ketika','hari','ada','banyak','tak','agak',
+            'rasa','membuat','terlalu','menjadi','selalu','juga','diri','lagi','benar',
+            'memang','enak','anda','sedikit','hanya','lebih','tahu','semua','merasakan',
+            'mungkin','sama','mulai','beberapa','sedih'
+        }
+
+        def get_top_keywords_mj(df_mood, top_n=5):
+            all_text = ' '.join(df_mood['MOOD_NOTE'].astype(str))
+            all_text_clean = re.sub(r'[^\w\s]', ' ', all_text)
+            words = all_text_clean.split()
+            filtered = [w.strip().lower() for w in words
+                        if len(w.strip()) >= 3
+                        and w.strip().lower() not in stopwords_p1
+                        and not w.strip().isdigit()
+                        and w.strip().lower() not in {'haha','hehe','lol','hmm'}]
+            return dict(Counter(filtered).most_common(top_n))
+
+        if not df_sedih.empty and not df_cemas.empty:
+            top5_sedih = get_top_keywords_mj(df_sedih)
+            top5_cemas = get_top_keywords_mj(df_cemas)
+
+            fig_p1mj, axes_p1mj = plt.subplots(1, 2, figsize=(14, 5))
+
+            axes_p1mj[0].bar(top5_sedih.keys(), top5_sedih.values(), color='#5D9B9B', edgecolor='black')
+            axes_p1mj[0].set_title('Top 5 Kata Kunci — Mood SEDIH', fontsize=13, fontweight='bold')
+            axes_p1mj[0].set_xlabel('Kata Kunci'); axes_p1mj[0].set_ylabel('Frekuensi')
+            axes_p1mj[0].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
+            if top5_sedih:
+                max_s = max(top5_sedih.values())
+                for i, v in enumerate(top5_sedih.values()):
+                    axes_p1mj[0].text(i, v + max_s * 0.02, str(int(v)), ha='center', fontweight='bold')
+
+            axes_p1mj[1].bar(top5_cemas.keys(), top5_cemas.values(), color='#E9C46A', edgecolor='black')
+            axes_p1mj[1].set_title('Top 5 Kata Kunci — Mood CEMAS', fontsize=13, fontweight='bold')
+            axes_p1mj[1].set_xlabel('Kata Kunci'); axes_p1mj[1].set_ylabel('Frekuensi')
+            axes_p1mj[1].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
+            if top5_cemas:
+                max_c = max(top5_cemas.values())
+                for i, v in enumerate(top5_cemas.values()):
+                    axes_p1mj[1].text(i, v + max_c * 0.02, str(int(v)), ha='center', fontweight='bold')
+
+            plt.tight_layout(); st.pyplot(fig_p1mj); plt.close(fig_p1mj)
+
+            top_sedih_list = list(top5_sedih.keys())
+            top_cemas_list = list(top5_cemas.keys())
+            st.markdown(f"""
             **Keterangan:**
-            * **Volume Data:** Dataset berhasil dimuat dengan total **11.887** entri. Volume data yang besar dan kaya ini sangat ideal, representatif, dan memadai untuk melakukan analisis pemrosesan teks (*text mining*) serta ekstraksi kata kunci pemicu suasana hati pengguna secara mendalam dan valid.
-            * **Struktur Kolom:**
-              * **Variabel Target (Kategori):** Kolom `MOOD` merupakan indikator utama klasifikasi emosi pengguna. Dataset ini terbukti bersifat seimbang (*balanced dataset*) dengan jumlah sekitar **2.972** entri untuk masing-masing kategori emosi (`sedih`, `bahagia`, `marah`, dan `cemas`), sehingga sangat valid untuk dianalisis secara komparatif tanpa risiko bias.
-              * **Variabel Teks (Sumber Cerita):** Kolom `MOOD_NOTE` berisi data teks naratif berupa catatan atau keluh kesah harian pengguna. Kolom ini akan menjadi sumber data utama untuk proses ekstraksi kata kunci pemicu utama (**Pertanyaan Bisnis 1**), filter interaksi sosial (**Pertanyaan Bisnis 2**), serta penyebutan keluhan fisik pengguna (**Pertanyaan Bisnis 3**).
-              * **Variabel Intervensi (Dukungan):** Kolom `support_message` merupakan luaran teks yang berisi pesan dukungan otomatis yang disesuaikan dengan kondisi emosi pengguna. Kolom kualitatif ini sudah terisi penuh and siap mendukung evaluasi efektivitas pesan bantuan sistem.
+            * **Mood Sedih:** Didominasi kata seperti **'{top_sedih_list[0] if top_sedih_list else '-'}'**, **'{top_sedih_list[1] if len(top_sedih_list)>1 else '-'}'** → pemicu berbasis fisik/kelelahan.
+            * **Mood Cemas:** Didominasi kata seperti **'{top_cemas_list[0] if top_cemas_list else '-'}'**, **'{top_cemas_list[1] if len(top_cemas_list)>1 else '-'}'** → pemicu berbasis ketakutan psikologis & ketidakpastian.
             """)
+            st.success("✅ **Solusi Strategis:** Kelompok `sedih` → pesan *physical recovery & comforting*. Kelompok `cemas` → teknik *grounding* dan validasi kognitif.")
+        else:
+            st.warning("⚠️ Data mood sedih/cemas tidak ditemukan dalam dataset.")
+        st.divider()
 
-        # PERTANYAAN 1
-        elif opsi_menu == "Pertanyaan 1: Topik Pemicu":
-            st.subheader("[1] Pertanyaan 1: Eksplorasi Pemicu Utama antara Rasa Sedih dan Cemas")
-            st.markdown('**Soal Baku:** *"Apa tiga kata kunci yang paling sering muncul dalam cerita pengguna saat mereka merasa \'sedih\' dan \'cemas\' pada kolom MOOD_NOTE, serta bagaimana perbandingan kemunculan kata-kata tersebut di antara kedua suasana hati ini?"*')
-            st.markdown('**Indikator:** *Menemukan kata kunci penanda utama pada cerita pengguna di kelompok mood sedih dan cemas.*')
-            st.divider()
+        # ── PERTANYAAN 2 ────────────────────────────────────────────────────
+        st.subheader("📌 [2] Pengaruh Hubungan Sosial pada Mood Bahagia vs Sedih")
+        st.markdown('**Soal:** *"Berapa besar persentase catatan mood \'bahagia\' yang menceritakan hubungan sosial, dibandingkan dengan mood \'sedih\'?"*')
+        st.markdown('**Indikator:** Membandingkan seberapa sering interaksi sosial muncul dalam cerita bahagia versus sedih.')
 
-            df_sedih = mood_jar[mood_jar['MOOD'] == 'sedih']
-            df_cemas = mood_jar[mood_jar['MOOD'] == 'cemas']
+        df_bahagia = mood_jar[mood_jar['MOOD'] == 'bahagia']
+        df_sedih_p2 = mood_jar[mood_jar['MOOD'] == 'sedih']
 
-            stopwords = set([
-                'aku', 'saya', 'kau', 'kamu', 'dia', 'mereka', 'kita', 'kami', 'ini', 'itu', 'tersebut', 
-                'dan', 'atau', 'tapi', 'namun', 'karena', 'sebab', 'jika', 'kalau', 'maka', 'sangat', 'begitu', 
-                'seperti', 'with', 'dengan', 'tanpa', 'untuk', 'dari', 'kepada', 'pada', 'oleh', 'dalam', 'bahwa', 'bisa', 
-                'akan', 'telas', 'sudah', 'belum', 'masih', 'sedang', 'yg', 'dgn', 'tdk', 'utk', 'jd', 'jg', 'sdh', 
-                'pun', 'nya', 'merasa', 'yang', 'tidak', 'perasaan', 'orang', 'saat', 'hal', 'ketika', 'hari', 'ada', 
-                'banyak', 'tak', 'agak', 'rasa', 'membuat', 'terlalu', 'menjadi', 'selalu', 'juga', 'diri', 'lagi', 'benar', 'memang'
-            ])
+        social_keywords = [
+            'teman','sahabat','kawan','keluarga','orang tua','ibu','mama','ayah','papa','bapak',
+            'pacar','suami','istri','kekasih','pasangan','bersama','kita','mereka','kami',
+            'kumpul','ngumpul','bertemu','saudara','kakak','adik','anak'
+        ]
 
-            def get_top_keywords(df_mood):
-                all_text = ' '.join(df_mood['MOOD_NOTE'].astype(str))
-                all_text_clean = re.sub(r'[^\w\s]', ' ', all_text)
-                words = all_text_clean.split()
-                filtered = [w.strip().lower() for w in words if len(w.strip()) >= 3 and w.strip().lower() not in stopwords]
-                return Counter(filtered).most_common(5)
+        def count_social_pct(df_mood):
+            if len(df_mood) == 0:
+                return 0, 0
+            count = sum(any(kw in str(row).lower() for kw in social_keywords)
+                        for row in df_mood['MOOD_NOTE'])
+            return count, (count / len(df_mood)) * 100
 
-            top5_sedih = dict(get_top_keywords(df_sedih))
-            top5_cemas = dict(get_top_keywords(df_cemas))
+        if not df_bahagia.empty and not df_sedih_p2.empty:
+            cnt_b, pct_b = count_social_pct(df_bahagia)
+            cnt_s, pct_s = count_social_pct(df_sedih_p2)
 
-            fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-            axes[0].bar(top5_sedih.keys(), top5_sedih.values(), color='#5D9B9B', edgecolor='black')
-            axes[0].set_title('Top 5 Kata Kunci - Mood SEDIH', fontsize=13, fontweight='bold')
-            axes[0].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: "{:,}".format(int(x))))
-            for i, v in enumerate(top5_sedih.values):
-                axes[0].text(i, v + 5, str(int(v)), ha='center', fontweight='bold')
+            col_p2mja, col_p2mjb = st.columns(2)
+            col_p2mja.metric("Interaksi Sosial — Bahagia", f"{pct_b:.1f}% ({int(cnt_b)} catatan)")
+            col_p2mjb.metric("Interaksi Sosial — Sedih", f"{pct_s:.1f}% ({int(cnt_s)} catatan)")
 
-            axes[1].bar(top5_cemas.keys(), top5_cemas.values(), color='#E9C46A', edgecolor='black')
-            axes[1].set_title('Top 5 Kata Kunci - Mood CEMAS', fontsize=13, fontweight='bold')
-            axes[1].get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: "{:,}".format(int(x))))
-            for i, v in enumerate(top5_cemas.values):
-                axes[1].text(i, v + 5, str(int(v)), ha='center', fontweight='bold')
-            st.pyplot(fig)
-            st.divider()
+            fig_p2mj, ax_p2mj = plt.subplots(figsize=(10, 6))
+            bars_p2 = ax_p2mj.bar(['Bahagia', 'Sedih'], [pct_b, pct_s],
+                                   color=['#F4A261', '#5D9B9B'], edgecolor='black', width=0.4)
+            ax_p2mj.set_ylim(0, max(pct_b, pct_s) + 15)
+            ax_p2mj.set_title('Persentase Catatan dengan Interaksi Sosial', fontsize=14, fontweight='bold')
+            ax_p2mj.set_ylabel('Persentase (%)')
+            ax_p2mj.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
+            for bar, pct, cnt in zip(bars_p2, [pct_b, pct_s], [cnt_b, cnt_s]):
+                ax_p2mj.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                             f'{pct:.1f}%\n({int(cnt)} catatan)', ha='center', va='bottom', fontweight='bold')
+            plt.tight_layout(); st.pyplot(fig_p2mj); plt.close(fig_p2mj)
 
-            st.markdown("""
+            st.markdown(f"""
             **Keterangan:**
-            * Proses analisis kata kunci penanda dilakukan terhadap total **5.943** baris catatan cerita pengguna (gabungan antara 2.972 data `sedih` dan 2.971 data `cemas`). Penerapan fungsi pembersihan karakter non-kata memastikan perhitungan frekuensi murni berdasarkan kata kontekstual yang berdiri sendiri tanpa terganggu oleh simbol tanda baca.
-            * **Struktur Pola Kata Kunci Dominan:**
-                * **Pemicu Utama Mood Sedih (Sisi Kiri Grafik):** Pola cerita pengguna didominasi kuat oleh kata kunci penanda distres emosional berbasis fisik dan penurunan energi, seperti kata **'sakit'**, **'lelah'**, dan **'capek'**. Hal ini menunjukkan adanya korelasi erat bahwa perasaan sedih yang diutarakan pengguna sering kali berkaitan dengan keletihan tubuh atau kondisi fisik yang kurang prima.
-                * **Pemicu Utama Mood Cemas (Sisi Kanan Grafik):** Pola cerita pengguna melompat secara dramatis pada kata kunci berbasis ketakutan psikologis dan kebingungan kognitif, yang direpresentasikan kuat oleh kata **'takut'**, **'aneh'**, dan **'ragu'**. Rasa cemas di sini dipicu oleh bayang-bayang masa depan atau ketidakpastian situasi sekitar.
+            * **Mood Bahagia ({pct_b:.1f}%):** Kehadiran lingkaran sosial (keluarga, teman, pasangan) merupakan faktor pelatuk eksternal dominan dalam memicu kebahagiaan mahasiswa.
+            * **Mood Sedih ({pct_s:.1f}%):** Distres emosional lebih banyak dipicu masalah internal atau *lack of social support*.
             """)
-            
-            st.success("""
-            ✅ **Solusi Strategis:** Kelompok pengguna dengan kondisi `sedih` akan diberikan alokasi pesan harian pada kolom `support_message` yang bersifat menenangkan emosi dan mendorong pemulihan fisik (*physical recovery & comforting message*). Sementara itu, kelompok pengguna dengan kondisi `cemas` akan diarahkan pada pesan bantuan dengan teknik pengalihan perhatian (*grounding technique*) serta validasi kognitif untuk menurunkan tingkat ketakutan mereka terhadap hal-hal yang bersifat tidak pasti.
-            """)
+            st.success("✅ **Solusi Strategis:** Saat sistem mendeteksi mood `sedih`, `support_message` menyarankan pengguna untuk membuka percakapan dengan sahabat atau meluangkan waktu bersama keluarga.")
+        else:
+            st.warning("⚠️ Data mood bahagia/sedih tidak ditemukan dalam dataset.")
+        st.divider()
 
-        # PERTANYAAN 2
-        elif opsi_menu == "Pertanyaan 2: Hubungan Sosial":
-            st.subheader("[2] Pertanyaan 2: Pengaruh Hubungan Sosial pada Mood Bahagia vs Sedih")
-            st.markdown('**Soal Baku:** *"Berapa besar persentase catatan mood \'bahagia\' yang menceritakan tentang hubungan sosial atau interaksi dengan orang terdekat, jika dibandingkan dengan catatan pada mood \'sedih\'?"*')
-            st.markdown('- **Indikator:** Membandingkan seberapa sering kehadiran interaksi sosial muncul dalam cerita bahagia versus cerita sedih.')
-            st.divider()
+        # ── PERTANYAAN 3 ────────────────────────────────────────────────────
+        st.subheader("📌 [3] Kaitan Kondisi Fisik dengan Emosi (Marah & Cemas vs Bahagia)")
+        st.markdown('**Soal:** *"Seberapa sering pengguna yang sedang \'marah\' dan \'cemas\' mengeluhkan kondisi fisik, dibandingkan saat \'bahagia\'?"*')
+        st.markdown('**Indikator:** Mengukur seberapa sering keluhan fisik muncul bersamaan dengan emosi tertentu.')
 
-            df_bahagia = mood_jar[mood_jar['MOOD'] == 'bahagia']
-            df_sedih = mood_jar[mood_jar['MOOD'] == 'sedih']
+        df_marah_cemas = mood_jar[mood_jar['MOOD'].isin(['marah', 'cemas'])]
+        df_bahagia_p3 = mood_jar[mood_jar['MOOD'] == 'bahagia']
 
-            social_keywords = ['teman', 'sahabat', 'kawan', 'keluarga', 'orang tua', 'ibu', 'mama', 'ayah', 'papa', 'bapak', 'pacar', 'bersama', 'kita', 'mereka', 'kami', 'kumpul', 'bertemu']
+        physical_keywords = [
+            'sakit','nyeri','pusing','mual','lelah','capek','lemas','tidur','kurang tidur',
+            'insomnia','begadang','flu','demam','batuk','sakit kepala','haid','linu'
+        ]
 
-            def count_social(df_mood):
-                count = sum(any(keyword in str(row['MOOD_NOTE']).lower() for keyword in social_keywords) for idx, row in df_mood.iterrows())
-                return count, (count / len(df_mood)) * 100
+        def count_physical_pct(df_mood):
+            if len(df_mood) == 0:
+                return 0, 0
+            count = sum(any(kw in str(row).lower() for kw in physical_keywords)
+                        for row in df_mood['MOOD_NOTE'])
+            return count, (count / len(df_mood)) * 100
 
-            cnt_b, pct_b = count_social(df_bahagia)
-            cnt_s, pct_s = count_social(df_sedih)
+        if not df_marah_cemas.empty and not df_bahagia_p3.empty:
+            cnt_neg, pct_neg = count_physical_pct(df_marah_cemas)
+            cnt_pos, pct_pos = count_physical_pct(df_bahagia_p3)
 
-            fig, ax = plt.subplots(figsize=(8, 5))
-            bars = ax.bar(['Bahagia', 'Sedih'], [pct_b, pct_s], color=['#F4A261', '#5D9B9B'], edgecolor='black', width=0.4)
-            ax.set_ylim(0, max([pct_b, pct_s]) + 15)
-            ax.set_title('Persentase Catatan dengan Interaksi Sosial', fontsize=14, fontweight='bold')
-            ax.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: "{:,}".format(int(x))))
-            for bar, pct, cnt in zip(bars, [pct_b, pct_s], [cnt_b, cnt_s]):
-                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{pct:.1f}%\n({int(cnt)} catatan)', ha='center', va='bottom', fontweight='bold')
-            st.pyplot(fig)
-            st.divider()
+            col_p3mja, col_p3mjb = st.columns(2)
+            col_p3mja.metric("Keluhan Fisik — Marah+Cemas", f"{pct_neg:.1f}% ({int(cnt_neg)} catatan)")
+            col_p3mjb.metric("Keluhan Fisik — Bahagia", f"{pct_pos:.1f}% ({int(cnt_pos)} catatan)")
 
-            st.markdown("""
+            fig_p3mj, ax_p3mj = plt.subplots(figsize=(10, 6))
+            bars_p3 = ax_p3mj.bar(['Marah + Cemas', 'Bahagia'], [pct_neg, pct_pos],
+                                   color=['#E76F51', '#F4A261'], edgecolor='black', width=0.4)
+            ax_p3mj.set_ylim(0, max(pct_neg, pct_pos) + 15)
+            ax_p3mj.set_title('Persentase Catatan yang Menyebut Kondisi Fisik', fontsize=14, fontweight='bold')
+            ax_p3mj.set_ylabel('Persentase (%)')
+            ax_p3mj.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x):,}"))
+            for bar, pct, cnt in zip(bars_p3, [pct_neg, pct_pos], [cnt_neg, cnt_pos]):
+                ax_p3mj.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                             f'{pct:.1f}%\n({int(cnt)} catatan)', ha='center', va='bottom', fontweight='bold')
+            plt.tight_layout(); st.pyplot(fig_p3mj); plt.close(fig_p3mj)
+
+            st.markdown(f"""
             **Keterangan:**
-            * Pengujian mengenai pengaruh hubungan interpersonal ini diproses menggunakan total **5.944** entri teks cerita harian pengguna (membagi rata secara adil antara 2.972 records data `bahagia` dan 2.972 records data `sedih`).
-            * **Struktur Pola Hubungan Interpersonal:**
-                * **Asosiasi pada Mood Bahagia (Valensi Positif):** Keterlibatan kata kunci interaksi sosial pada kelompok cerita `bahagia` mencatatkan persentase kemunculan yang tinggi. Temuan ini secara statistik mengonfirmasi bahwa kehadiran lingkaran hubungan sosial (seperti keluarga, teman, atau pasangan) memegang peranan krusial sebagai faktor pelatuk eksternal yang dominan dalam memicu kebahagiaan harian mahasiswa.
-                * **Asosiasi pada Mood Sedih (Valensi Negatif):** Sebaliknya, persentase indikator keterlibatan hubungan sosial pada kelompok cerita `sedih` terdeteksi lebih rendah. Hal ini mengindikasikan bahwa distres emosional berupa rasa sedih yang dialami pengguna cenderung lebih banyak dipicu oleh masalah internal personal atau kondisi di mana mahasiswa merasa kekurangan dukungan sosial (*lack of social support*).
+            * **Klaster Negatif — Marah + Cemas ({pct_neg:.1f}%):** Pengguna sering menyisipkan keluhan fisik seperti gangguan tidur (*begadang*, *insomnia*) dan rasa tidak nyaman (*pusing*, *lelah*). Penurunan kesehatan biologis berdampak langsung pada penurunan ambang kesabaran kognitif.
+            * **Klaster Positif — Bahagia ({pct_pos:.1f}%):** Keluhan fisik sangat minim. Kondisi tubuh prima dan tidur cukup adalah *well-being foundation* bagi munculnya afeksi positif.
             """)
-            
-            st.success("""
-            ✅ **Solusi Strategis:** Ketika sistem mendeteksi teks cerita harian pengguna mengarah pada klaster mood `sedih`, kolom `support_message` secara cerdas dapat menyarankan tindakan protektif berbasis hubungan sosial. Misalnya dengan memberikan dorongan moral bagi pengguna untuk membuka percakapan dengan sahabat karib atau meluangkan waktu sejenak bersama keluarga guna mengaktifkan sistem dukungan sosial (*social support system*) mereka demi memulihkan stabilitas energi emosional.
-            """)
+            st.success("✅ **Solusi Strategis:** Saat sistem mendeteksi kombinasi keluhan fisik + mood `marah`/`cemas`, `support_message` memberikan rekomendasi fisik nyata: pengingat tidur, latihan pernapasan, atau *bed rest*.")
+        else:
+            st.warning("⚠️ Data mood marah/cemas/bahagia tidak ditemukan dalam dataset.")
 
-        # PERTANYAAN 3
-        elif opsi_menu == "Pertanyaan 3: Kondisi Fisik vs Emosi":
-            st.subheader("[3] Pertanyaan 3: Kaitan antara Kondisi Fisik dengan Emosi (Marah & Cemas vs Bahagia)")
-            st.markdown('**Soal Baku:** *"Seberapa sering (dalam persen) pengguna yang sedang merasa \'marah\' dan \'cemas\' mengeluhkan kondisi fisik mereka dalam ceritanya, jika dibandingkan dengan saat mereka merasa \'bahagia\'?"*')
-            st.markdown('- **Indikator:** Mengukur seberapa sering keluhan kondisi fisik atau tubuh yang tidak nyaman muncul bersamaan dengan emosi tertentu.')
-            st.divider()
-
-            df_marah_cemas = mood_jar[mood_jar['MOOD'].isin(['marah', 'cemas'])]
-            df_bahagia = mood_jar[mood_jar['MOOD'] == 'bahagia']
-
-            physical_keywords = ['sakit', 'nyeri', 'pusing', 'mual', 'lelah', 'capek', 'lemas', 'tidur', 'kurang tidur', 'insomnia', 'begadang', 'flu', 'demam', 'batuk', 'sakit kepala']
-
-            def count_physical(df_mood):
-                count = sum(any(keyword in str(row['MOOD_NOTE']).lower() for keyword in physical_keywords) for idx, row in df_mood.iterrows())
-                return count, (count / len(df_mood)) * 100
-
-            cnt_neg, pct_neg = count_physical(df_marah_cemas)
-            cnt_pos, pct_pos = count_physical(df_bahagia)
-
-            fig, ax = plt.subplots(figsize=(8, 5))
-            bars = ax.bar(['Marah + Cemas', 'Bahagia'], [pct_neg, pct_pos], color=['#E76F51', '#F4A261'], edgecolor='black', width=0.4)
-            ax.set_ylim(0, max([pct_neg, pct_pos]) + 15)
-            ax.set_title('Persentase Catatan yang Menyebut Kondisi Fisik', fontsize=14, fontweight='bold')
-            ax.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: "{:,}".format(int(x))))
-            for bar, pct, cnt in zip(bars, [pct_neg, pct_pos], [cnt_neg, cnt_pos]):
-                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{pct:.1f}%\n({int(cnt)} catatan)', ha='center', va='bottom', fontweight='bold')
-            st.pyplot(fig)
-            st.divider()
-
-            st.markdown("""
-            **Keterangan:**
-            * Evaluasi korelasi antara kondisi fisik (*somatis*) dan luapan emosi diproses menggunakan total **8.915** baris cerita harian pengguna (merangkum 2.972 data `marah`, 2.971 data `cemas`, dan 2.972 data `bahagia`).
-            * **Struktur Pola Kondisi Fisik terhadap Emosi:**
-                * **Klaster Mood Negatif (Marah + Cemas):** Terdapat kecenderungan yang signifikan di mana pengguna yang mengekspresikan rasa `marah` dan `cemas` sering kali menyisipkan keluhan kelainan fisik di dalam ceritanya, seperti gangguan tidur (*begadang*, *insomnia*, *kurang tidur*) ataupun rasa tidak nyaman pada tubuh (*pusing*, *nyeri*, *lelah*). Hal ini menunjukkan bahwa penurunan kesehatan biologis berdampak langsung pada penurunan ambang batas kesabaran kognitif mahasiswa.
-                * **Klaster Mood Positif (Bahagia):** Sebaliknya, pada catatan suasana hati `bahagia`, penyebutan keluhan fisik terdeteksi sangat minim. Temuan ini mengindikasikan bahwa kondisi tubuh yang prima, sehat, dan waktu tidur yang cukup bertindak sebagai prasyarat utama (*well-being foundation*) bagi munculnya afeksi positif harian.
-            """)
-            
-            st.success("""
-            ✅ **Solusi Strategis:** Ketika model mendeteksi adanya kombinasi keluhan fisik pada cerita `marah` atau `cemas`, sistem melalui kolom `support_message` tidak hanya memberikan kalimat penenang psikologis, melainkan memberikan rekomendasi intervensi fisik yang nyata. Contohnya seperti memicu pengingat untuk segera tidur, menyarankan latihan pernapasan untuk meredakan pusing, atau menyarankan istirahat penuh (*bed rest*) demi menyeimbangkan kembali pasokan energi biologis pengguna.
-            """)
-
+    except FileNotFoundError:
+        st.error("⚠️ File `main_data_mood_jar.csv` tidak ditemukan. Pastikan file tersedia di direktori yang sama dengan `app.py`.")
     except Exception as e:
-        st.error(f"⚠️ Terjadi kesalahan memproses data Mood Jar: {e}")
+        st.error(f"⚠️ Terjadi kesalahan: {e}")
