@@ -41,7 +41,7 @@ with st.sidebar:
 # =============================================================================
 if main_menu == "Halaman Utama (Beranda)":
     st.title("📊 Aplikasi Dashboard Analisis Terintegrasi")
-    st.markdown("### Proyek Capstone Calm: Social Battery & Mood Jar")
+    st.markdown("### Proyek Capstone: Calm Social Battery & Calm Mood Jar")
     st.divider()
 
     st.markdown("""
@@ -81,7 +81,7 @@ elif main_menu == "🔋 Modul 1: Social Battery":
     
     @st.cache_data
     def load_sb_data():
-        df = pd.read_csv("main_data_social_battery.csv")
+        df = pd.read_csv("data/main_data_social_battery.csv")
         month_order = ['January', 'February', 'March', 'April', 'May', 'June',
                        'July', 'August', 'September', 'October', 'November', 'December']
         day_order = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
@@ -288,7 +288,7 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
     
     @st.cache_data
     def load_mj_data():
-        return pd.read_csv("main_data_mood_jar.csv")
+        return pd.read_csv("data/main_data_mood_jar.csv")
 
     try:
         mood_jar = load_mj_data()
@@ -311,7 +311,7 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
 
         # GATHERING DATA & WORD CLOUD
         if opsi_menu == "Eksplorasi Awal & Word Cloud":
-            st.subheader("Tahap Gathering Data & Awal Eksplorasi (Word Cloud Grid 2x2)")
+            st.subheader("Tahap Gathering Data & Awal Eksplorasi (Word Cloud)")
             st.divider()
             
             mood_counts = mood_jar['MOOD'].value_counts()
@@ -386,10 +386,7 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
             * **Struktur Kolom:**
               * **Variabel Target (Kategori):** Kolom `MOOD` merupakan indikator utama klasifikasi emosi pengguna. Dataset ini terbukti bersifat seimbang (*balanced dataset*) dengan jumlah sekitar **2.972** entri untuk masing-masing kategori emosi (`sedih`, `bahagia`, `marah`, dan `cemas`), sehingga sangat valid untuk dianalisis secara komparatif tanpa risiko bias.
               * **Variabel Teks (Sumber Cerita):** Kolom `MOOD_NOTE` berisi data teks naratif berupa catatan atau keluh kesah harian pengguna. Kolom ini akan menjadi sumber data utama untuk proses ekstraksi kata kunci pemicu utama (**Pertanyaan Bisnis 1**), filter interaksi sosial (**Pertanyaan Bisnis 2**), serta penyebutan keluhan fisik pengguna (**Pertanyaan Bisnis 3**).
-              * **Variabel Intervensi (Dukungan):** Kolom `support_message` merupakan luaran teks yang berisi pesan dukungan otomatis yang disesuaikan dengan kondisi emosi pengguna. Kolom kualitatif ini sudah terisi penuh dan siap mendukung evaluasi efektivitas pesan bantuan sistem.
-            * **Eksplorasi Kata Kunci Melalui Word Cloud (Grid 2x2):**
-              * Penerapan visualisasi *Word Cloud* yang diintegrasikan langsung pada tahap awal eksplorasi ini memberikan gambaran intuitif mengenai sebaran kata kunci emosional murni mahasiswa setelah berhasil dieliminasi menggunakan daftar *Extended Stopwords*.
-              * Hasil pemetaan visual dalam grid 2x2 ini menunjukkan kontras yang jelas: pada klaster emosi negatif (`sedih`, `cemas`, `marah`) didominasi oleh tekstual keluhan beban akademik, kecemasan, dan kelelahan fisik, sedangkan klaster emosi positif (`bahagia`) didominasi oleh indikator kepuasan, kehadiran hubungan sosial, dan apresiasi harian. Hal ini memberikan landasan teori dan validitas empiris yang kuat untuk memproses pengujian **Pertanyaan Bisnis 1, 2, dan 3** pada tahap analisis lanjutan.
+              * **Variabel Intervensi (Dukungan):** Kolom `support_message` merupakan luaran teks yang berisi pesan dukungan otomatis yang disesuaikan dengan kondisi emosi pengguna. Kolom kualitatif ini sudah terisi penuh and siap mendukung evaluasi efektivitas pesan bantuan sistem.
             """)
 
         # PERTANYAAN 1
@@ -441,7 +438,7 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
             * Proses analisis kata kunci penanda dilakukan terhadap total **5.943** baris catatan cerita pengguna (gabungan antara 2.972 data `sedih` dan 2.971 data `cemas`). Penerapan fungsi pembersihan karakter non-kata memastikan perhitungan frekuensi murni berdasarkan kata kontekstual yang berdiri sendiri tanpa terganggu oleh simbol tanda baca.
             * **Struktur Pola Kata Kunci Dominan:**
                 * **Pemicu Utama Mood Sedih (Sisi Kiri Grafik):** Pola cerita pengguna didominasi kuat oleh kata kunci penanda distres emosional berbasis fisik dan penurunan energi, seperti kata **'sakit'**, **'lelah'**, dan **'capek'**. Hal ini menunjukkan adanya korelasi erat bahwa perasaan sedih yang diutarakan pengguna sering kali berkaitan dengan keletihan tubuh atau kondisi fisik yang kurang prima.
-                * **Pemicu Utama Mood Cemas (Sisi Kanan Grafik):** Pola cerita pengguna melompat secara dramatis pada kata kunci berbasis ketakutan psikologis dan kebingungan kognitif, yang direpresentasikan kuat oleh kata **'takut'**, **'aneh'**, dan **'ragu'**. Rasa cemas di sini dipicu by bayang-bayang masa depan atau ketidakpastian situasi sekitar.
+                * **Pemicu Utama Mood Cemas (Sisi Kanan Grafik):** Pola cerita pengguna melompat secara dramatis pada kata kunci berbasis ketakutan psikologis dan kebingungan kognitif, yang direpresentasikan kuat oleh kata **'takut'**, **'aneh'**, dan **'ragu'**. Rasa cemas di sini dipicu oleh bayang-bayang masa depan atau ketidakpastian situasi sekitar.
             """)
             
             st.success("""
@@ -481,8 +478,8 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
             **Keterangan:**
             * Pengujian mengenai pengaruh hubungan interpersonal ini diproses menggunakan total **5.944** entri teks cerita harian pengguna (membagi rata secara adil antara 2.972 records data `bahagia` dan 2.972 records data `sedih`).
             * **Struktur Pola Hubungan Interpersonal:**
-                * **Asosiasi pada Mood Bahagia (Positif):** Keterlibatan kata kunci interaksi sosial pada kelompok cerita `bahagia` mencatatkan persentase kemunculan yang tinggi. Temuan ini secara statistik mengonfirmasi bahwa kehadiran lingkaran hubungan sosial (seperti keluarga, teman, atau pasangan) memegang peranan krusial sebagai faktor pelatuk eksternal yang dominan dalam memicu kebahagiaan harian mahasiswa.
-                * **Asosiasi pada Mood Sedih (Negatif):** Sebaliknya, persentase indikator keterlibatan hubungan sosial pada kelompok cerita `sedih` terdeteksi lebih rendah. Hal ini mengindikasikan bahwa distres emosional berupa rasa sedih yang dialami pengguna cenderung lebih banyak dipicu oleh masalah internal personal atau kondisi di mana mahasiswa merasa kekurangan dukungan sosial (*lack of social support*).
+                * **Asosiasi pada Mood Bahagia (Valensi Positif):** Keterlibatan kata kunci interaksi sosial pada kelompok cerita `bahagia` mencatatkan persentase kemunculan yang tinggi. Temuan ini secara statistik mengonfirmasi bahwa kehadiran lingkaran hubungan sosial (seperti keluarga, teman, atau pasangan) memegang peranan krusial sebagai faktor pelatuk eksternal yang dominan dalam memicu kebahagiaan harian mahasiswa.
+                * **Asosiasi pada Mood Sedih (Valensi Negatif):** Sebaliknya, persentase indikator keterlibatan hubungan sosial pada kelompok cerita `sedih` terdeteksi lebih rendah. Hal ini mengindikasikan bahwa distres emosional berupa rasa sedih yang dialami pengguna cenderung lebih banyak dipicu oleh masalah internal personal atau kondisi di mana mahasiswa merasa kekurangan dukungan sosial (*lack of social support*).
             """)
             
             st.success("""
@@ -520,7 +517,7 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
 
             st.markdown("""
             **Keterangan:**
-            * Evaluasi korelasi antara kondisi fisik dan luapan emosi diproses menggunakan total **8.915** baris cerita harian pengguna (merangkum 2.972 data `marah`, 2.971 data `cemas`, dan 2.972 data `bahagia`).
+            * Evaluasi korelasi antara kondisi fisik (*somatis*) dan luapan emosi diproses menggunakan total **8.915** baris cerita harian pengguna (merangkum 2.972 data `marah`, 2.971 data `cemas`, dan 2.972 data `bahagia`).
             * **Struktur Pola Kondisi Fisik terhadap Emosi:**
                 * **Klaster Mood Negatif (Marah + Cemas):** Terdapat kecenderungan yang signifikan di mana pengguna yang mengekspresikan rasa `marah` dan `cemas` sering kali menyisipkan keluhan kelainan fisik di dalam ceritanya, seperti gangguan tidur (*begadang*, *insomnia*, *kurang tidur*) ataupun rasa tidak nyaman pada tubuh (*pusing*, *nyeri*, *lelah*). Hal ini menunjukkan bahwa penurunan kesehatan biologis berdampak langsung pada penurunan ambang batas kesabaran kognitif mahasiswa.
                 * **Klaster Mood Positif (Bahagia):** Sebaliknya, pada catatan suasana hati `bahagia`, penyebutan keluhan fisik terdeteksi sangat minim. Temuan ini mengindikasikan bahwa kondisi tubuh yang prima, sehat, dan waktu tidur yang cukup bertindak sebagai prasyarat utama (*well-being foundation*) bagi munculnya afeksi positif harian.
