@@ -733,8 +733,8 @@ elif main_menu == "🫙 Modul 2: Mood Jar":
               **'{top_cemas_list[1] if len(top_cemas_list) > 1 else '-'}'** → pemicu berbasis ketakutan
               psikologis & ketidakpastian.
             """)
-            st.success("✅ **Solusi Strategis:** Kelompok `sedih` → pesan *physical recovery & comforting*. "
-                       "Kelompok `cemas` → teknik *grounding* dan validasi kognitif.")
+            st.success("✅ **Solusi Strategis:** Kelompok `sedih`, `support_message` akan memberikan pesan *physical recovery* ( butuh istirahat untuk pulih) & *comforting* (dukungan). "
+                       "Kelompok `cemas`, akan diberikan pesan untuk melakukan teknik *grounding* (pengalihan) dan validasi kognitif.")
         else:
             st.warning("⚠️ Data mood sedih/cemas tidak ditemukan dalam dataset.")
         st.divider()
