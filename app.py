@@ -149,8 +149,9 @@ elif main_menu == "🔋 Modul 1: Social Battery":
 
         st.markdown("""
         **Keterangan:**
-        * **`battery_score`** bergerak dari minimum **0.34** hingga **99.99**, rata-rata **~62**. Kondisi kelelahan kritis ditetapkan pada `< 20`.
-        * **`total_duration_minutes`** berkisar **0 – 1.300 menit** (~21,6 jam), rentang luas ini memadai untuk mencari batas aman aktivitas sosial.
+        * **`battery_score`** bergerak dari minimum **24.2** hingga **97.77**, rata-rata **56.6**. Kondisi kelelahan kritis ditetapkan pada `< 20`.
+        * **`total_duration_minutes`** berkisar **916.3 menit** (~15,2 jam), rentang luas ini memadai untuk mencari batas aman aktivitas sosial.
+        * **`social_intensity_score`** Memiliki rata-rata sebesar **43.4** dengan puncak tertinggi di angka **75.8**. Ini mencerminkan bahwa tingkat kepadatan atau beban aktivitas sosial pengguna dominan berada di level menengah (Medium Intensity), menjaga agar mayoritas data tetap berada di zona Medium Battery.
         """)
         st.divider()
 
